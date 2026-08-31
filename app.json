@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "Pillio",
+    "slug": "pillio",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "pillio",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "icon": "./assets/expo.icon",
+      "supportsTablet": false,
+      "bundleIdentifier": "com.pillio.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Pillio uses the camera to capture progress photos.",
+        "NSPhotoLibraryUsageDescription": "Pillio accesses your photo library so you can add progress photos.",
+        "NSPhotoLibraryAddUsageDescription": "Pillio can save progress photos to your library if you choose."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0D10",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.pillio.app"
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0B0D10",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Pillio accesses your photo library so you can add progress photos.",
+          "cameraPermission": "Pillio uses the camera to capture progress photos."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#3EE0B7",
+          "defaultChannel": "doses"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
