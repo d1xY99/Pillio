@@ -13,27 +13,30 @@ export function HeroBanner({
   title,
   body,
   source,
+  compact = true,
 }: {
   kicker?: string;
   title: string;
   body?: string;
   source?: typeof ART.hero;
+  compact?: boolean;
 }) {
   return (
-    <Animated.View entering={FadeIn.duration(800)} style={styles.wrap}>
+    <Animated.View
+      entering={FadeIn.duration(800)}
+      style={[styles.wrap, compact ? styles.wrapCompact : styles.wrapTall]}>
       <Image source={source ?? ART.hero} style={styles.image} contentFit="cover" />
       <LinearGradient
-        colors={['rgba(6,7,8,0.05)', 'rgba(6,7,8,0.55)', 'rgba(6,7,8,0.94)']}
-        locations={[0, 0.45, 1]}
+        colors={['rgba(6,7,8,0.2)', 'rgba(6,7,8,0.72)']}
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.edge} />
-      <View style={styles.copy}>
+      <View style={[styles.copy, compact && styles.copyCompact]}>
         {kicker ? <Kicker label={kicker} /> : null}
-        <ThemedText type="title" style={styles.title}>
+        <ThemedText type={compact ? 'headline' : 'title'} style={styles.title} numberOfLines={1}>
           {title}
         </ThemedText>
-        {body ? (
+        {body && !compact ? (
           <ThemedText type="callout" style={styles.body}>
             {body}
           </ThemedText>
@@ -45,12 +48,17 @@ export function HeroBanner({
 
 const styles = StyleSheet.create({
   wrap: {
-    height: 210,
-    borderRadius: Radius.xl,
+    borderRadius: Radius.lg,
     overflow: 'hidden',
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
+  },
+  wrapCompact: {
+    height: 88,
+  },
+  wrapTall: {
+    height: 168,
   },
   image: {
     ...StyleSheet.absoluteFill,
@@ -69,6 +77,12 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     padding: Spacing.four,
     gap: 8,
+  },
+  copyCompact: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    gap: 6,
+    justifyContent: 'center',
   },
   title: {
     color: '#F6FAF8',

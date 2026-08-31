@@ -129,12 +129,16 @@ export default function TodayScreen() {
       ) : null}
 
       <HeroBanner
+        compact
         kicker="DAILY STACK"
-        title={total === 0 ? 'Build the ritual.' : taken === total ? 'Stack complete.' : 'Stay on protocol.'}
-        body={
+        title={
           streak > 0
-            ? `${streak}-day streak. Check off before the due time and the reminder stays silent.`
-            : 'Vitamins, peptides, and supplements — one tap when you take them.'
+            ? `${streak}-day streak`
+            : total === 0
+              ? 'Build the ritual'
+              : taken === total
+                ? 'Stack complete'
+                : 'Stay on protocol'
         }
       />
 
