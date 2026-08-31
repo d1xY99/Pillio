@@ -25,9 +25,11 @@ import {
 } from '@/db/queries/workouts';
 import { workoutSessions } from '@/db/schema';
 import { formatDayLabel } from '@/domain/time';
+import { useCloudSlice } from '@/hooks/use-cloud-slice';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function TrainScreen() {
+  useCloudSlice('gym');
   const router = useRouter();
   const theme = useTheme();
   const db = getDb();

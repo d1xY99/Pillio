@@ -31,6 +31,7 @@ import { bodyWeights, progressPhotos } from '@/db/schema';
 import { PHOTO_POSES, type PhotoPose } from '@/db/types';
 import { captureProgressPhoto, deletePhotoFile } from '@/domain/photos';
 import { formatDayLabel } from '@/domain/time';
+import { useCloudSlice } from '@/hooks/use-cloud-slice';
 import { useTheme } from '@/hooks/use-theme';
 import { confirmAction } from '@/lib/confirm';
 
@@ -48,6 +49,7 @@ const POSE_FILTER_LABELS = {
 };
 
 export default function ProgressScreen() {
+  useCloudSlice('body');
   const theme = useTheme();
   const router = useRouter();
   const { width } = useWindowDimensions();

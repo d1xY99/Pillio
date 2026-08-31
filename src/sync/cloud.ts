@@ -18,16 +18,21 @@ let timer: ReturnType<typeof setTimeout> | null = null;
 let syncDepth = 0;
 let clearing: Promise<void> | null = null;
 
-const CLOUD_TABLES = [
-  'supplements',
-  'schedules',
-  'dose_logs',
-  'exercises',
-  'workout_sessions',
-  'workout_sets',
-  'body_weights',
-  'progress_photos',
-] as const;
+export type CloudSlice = 'stack' | 'gym' | 'body';
+
+const SLICES: Record<CloudSlice, readonly string[]> = {
+  stack: ['supplements', 'schedules', 'dose_logs'],
+  gym: ['exercises', 'workout_sessions', 'workout_sets'],
+  body: ['body_weights', 'progress_photos'],
+};
+
+const pulled = new Set<CloudSlice>();
+const inflight = new Map<CloudSlice, Promise<void>>();
+
+export function resetCloudPullState() {
+  pulled.clear();
+  inflight.clear();
+}
 
 export function beginCloudQuiet() {
   syncDepth += 1;
@@ -72,6 +77,7 @@ export async function clearLocalUserData() {
     beginCloudQuiet();
     try {
       wipeLocalUserRows();
+      resetCloudPullState();
       await flushLocalPersist();
     } finally {
       endCloudQuiet();
@@ -93,26 +99,47 @@ async function sessionUserId() {
 }
 
 export async function pullFromCloud() {
+  await pullSlice('stack');
+}
+
+export async function pullSlice(slice: CloudSlice) {
+  if (pulled.has(slice)) return;
+  const pending = inflight.get(slice);
+  if (pending) return pending;
+
+  const work = doPullSlice(slice);
+  inflight.set(slice, work);
+  try {
+    await work;
+  } finally {
+    inflight.delete(slice);
+  }
+}
+
+async function doPullSlice(slice: CloudSlice) {
+  if (pulled.has(slice)) return;
   const supabase = getSupabase();
   if (!supabase) return;
   const userId = await sessionUserId();
   if (!userId) return;
 
+  const tables = SLICES[slice];
   const results = await Promise.all(
-    CLOUD_TABLES.map((table) => supabase.from(table).select('*').eq('user_id', userId)),
+    tables.map((table) => supabase.from(table).select('*').eq('user_id', userId)),
   );
   const failed = results.find((result) => result.error);
   if (failed?.error) {
-    console.warn('[pillio] cloud pull:', failed.error.message);
+    console.warn(`[pillio] cloud pull ${slice}:`, failed.error.message);
     return;
   }
 
   const mapRows: Record<string, unknown[] | null> = {};
-  CLOUD_TABLES.forEach((table, index) => {
+  tables.forEach((table, index) => {
     mapRows[table] = results[index].data;
   });
 
-  if ((mapRows.supplements?.length ?? 0) === 0) {
+  if (slice === 'stack' && (mapRows.supplements?.length ?? 0) === 0) {
+    pulled.add(slice);
     const localCount = getDb().select().from(supplements).all().length;
     if (localCount) await pushToCloud({ reconcile: false });
     return;
@@ -120,32 +147,66 @@ export async function pullFromCloud() {
 
   beginCloudQuiet();
   try {
-    const db = getDb();
-    wipeLocalUserRows();
-
-    insertMapped(mapRows.supplements, (row) =>
-      db.insert(supplements).values(fromSupplement(row)).run(),
-    );
-    insertMapped(mapRows.schedules, (row) => db.insert(schedules).values(fromSchedule(row)).run());
-    insertMapped(mapRows.dose_logs, (row) => db.insert(doseLogs).values(fromDose(row)).run());
-    insertMapped(mapRows.exercises, (row) => {
-      if (row.is_preset) return;
-      db.insert(exercises).values(fromExercise(row)).run();
-    });
-    insertMapped(mapRows.workout_sessions, (row) =>
-      db.insert(workoutSessions).values(fromSession(row)).run(),
-    );
-    insertMapped(mapRows.workout_sets, (row) => db.insert(workoutSets).values(fromSet(row)).run());
-    insertMapped(mapRows.body_weights, (row) => db.insert(bodyWeights).values(fromWeight(row)).run());
-    insertMapped(mapRows.progress_photos, (row) =>
-      db.insert(progressPhotos).values(fromPhoto(row)).run(),
-    );
-
+    wipeSlice(slice);
+    for (const table of tables) writeTable(table, mapRows[table]);
     await flushLocalPersist();
     notifyDbChanged();
+    pulled.add(slice);
   } finally {
     endCloudQuiet();
   }
+}
+
+function wipeSlice(slice: CloudSlice) {
+  const db = getDb();
+  for (const table of [...SLICES[slice]].reverse()) {
+    if (table === 'dose_logs') db.delete(doseLogs).run();
+    else if (table === 'schedules') db.delete(schedules).run();
+    else if (table === 'supplements') db.delete(supplements).run();
+    else if (table === 'workout_sets') db.delete(workoutSets).run();
+    else if (table === 'workout_sessions') db.delete(workoutSessions).run();
+    else if (table === 'exercises') db.delete(exercises).where(eq(exercises.isPreset, false)).run();
+    else if (table === 'body_weights') db.delete(bodyWeights).run();
+    else if (table === 'progress_photos') db.delete(progressPhotos).run();
+  }
+}
+
+function writeTable(table: string, rows: unknown[] | null | undefined) {
+  const db = getDb();
+  if (table === 'supplements') {
+    insertMapped(rows, (row) => db.insert(supplements).values(fromSupplement(row)).run());
+  } else if (table === 'schedules') {
+    insertMapped(rows, (row) => db.insert(schedules).values(fromSchedule(row)).run());
+  } else if (table === 'dose_logs') {
+    insertMapped(rows, (row) => db.insert(doseLogs).values(fromDose(row)).run());
+  } else if (table === 'exercises') {
+    insertMapped(rows, (row) => {
+      if (row.is_preset) return;
+      db.insert(exercises).values(fromExercise(row)).run();
+    });
+  } else if (table === 'workout_sessions') {
+    insertMapped(rows, (row) => db.insert(workoutSessions).values(fromSession(row)).run());
+  } else if (table === 'workout_sets') {
+    insertMapped(rows, (row) => db.insert(workoutSets).values(fromSet(row)).run());
+  } else if (table === 'body_weights') {
+    insertMapped(rows, (row) => db.insert(bodyWeights).values(fromWeight(row)).run());
+  } else if (table === 'progress_photos') {
+    insertMapped(rows, (row) => db.insert(progressPhotos).values(fromPhoto(row)).run());
+  }
+}
+
+function sliceHasLocal(slice: CloudSlice) {
+  const db = getDb();
+  if (slice === 'stack') return db.select().from(supplements).all().length > 0;
+  if (slice === 'gym') {
+    return (
+      db.select().from(workoutSessions).all().length > 0 ||
+      db.select().from(exercises).all().some((row) => !row.isPreset)
+    );
+  }
+  return (
+    db.select().from(bodyWeights).all().length > 0 || db.select().from(progressPhotos).all().length > 0
+  );
 }
 
 export async function pushToCloud(options: { reconcile?: boolean } = {}) {
@@ -165,31 +226,48 @@ export async function pushToCloud(options: { reconcile?: boolean } = {}) {
   const allWeights = db.select().from(bodyWeights).all();
   const allPhotos = db.select().from(progressPhotos).all();
 
-  await Promise.all([
-    upsert('supplements', allSupplements.map((row) => toSupplement(row, uid))),
-    upsert('exercises', allExercises.map((row) => toExercise(row, uid))),
-    upsert('workout_sessions', allSessions.map((row) => toSession(row, uid))),
-    upsert('body_weights', allWeights.map((row) => toWeight(row, uid))),
-    upsert('progress_photos', allPhotos.map((row) => toPhoto(row, uid))),
-  ]);
-  await Promise.all([
-    upsert('schedules', allSchedules.map((row) => toSchedule(row, uid))),
-    upsert('dose_logs', allDoses.map((row) => toDose(row, uid))),
-    upsert('workout_sets', allSets.map((row) => toSet(row, uid))),
-  ]);
+  const pushStack = pulled.has('stack') || sliceHasLocal('stack');
+  const pushGym = pulled.has('gym') || sliceHasLocal('gym');
+  const pushBody = pulled.has('body') || sliceHasLocal('body');
+
+  const parents: Promise<void>[] = [];
+  if (pushStack) parents.push(upsert('supplements', allSupplements.map((row) => toSupplement(row, uid))));
+  if (pushGym) {
+    parents.push(upsert('exercises', allExercises.map((row) => toExercise(row, uid))));
+    parents.push(upsert('workout_sessions', allSessions.map((row) => toSession(row, uid))));
+  }
+  if (pushBody) {
+    parents.push(upsert('body_weights', allWeights.map((row) => toWeight(row, uid))));
+    parents.push(upsert('progress_photos', allPhotos.map((row) => toPhoto(row, uid))));
+  }
+  await Promise.all(parents);
+
+  const children: Promise<void>[] = [];
+  if (pushStack) {
+    children.push(upsert('schedules', allSchedules.map((row) => toSchedule(row, uid))));
+    children.push(upsert('dose_logs', allDoses.map((row) => toDose(row, uid))));
+  }
+  if (pushGym) children.push(upsert('workout_sets', allSets.map((row) => toSet(row, uid))));
+  await Promise.all(children);
 
   if (!reconcile) return;
 
-  await Promise.all([
-    deleteMissing('dose_logs', uid, ids(allDoses)),
-    deleteMissing('workout_sets', uid, ids(allSets)),
-    deleteMissing('schedules', uid, ids(allSchedules)),
-    deleteMissing('workout_sessions', uid, ids(allSessions)),
-    deleteMissing('body_weights', uid, ids(allWeights)),
-    deleteMissing('progress_photos', uid, ids(allPhotos)),
-    deleteMissing('exercises', uid, ids(allExercises)),
-    deleteMissing('supplements', uid, ids(allSupplements)),
-  ]);
+  const missing: Promise<void>[] = [];
+  if (pulled.has('stack')) {
+    missing.push(deleteMissing('dose_logs', uid, ids(allDoses)));
+    missing.push(deleteMissing('schedules', uid, ids(allSchedules)));
+    missing.push(deleteMissing('supplements', uid, ids(allSupplements)));
+  }
+  if (pulled.has('gym')) {
+    missing.push(deleteMissing('workout_sets', uid, ids(allSets)));
+    missing.push(deleteMissing('workout_sessions', uid, ids(allSessions)));
+    missing.push(deleteMissing('exercises', uid, ids(allExercises)));
+  }
+  if (pulled.has('body')) {
+    missing.push(deleteMissing('body_weights', uid, ids(allWeights)));
+    missing.push(deleteMissing('progress_photos', uid, ids(allPhotos)));
+  }
+  await Promise.all(missing);
 }
 
 function ids(rows: { id: string }[]) {
