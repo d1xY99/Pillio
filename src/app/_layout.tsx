@@ -21,24 +21,40 @@ export default function RootLayout() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      initDatabase();
-      ensureUpcomingDoses();
-      void syncDoseReminders();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not open local database');
-    } finally {
-      setReady(true);
-      SplashScreen.hideAsync();
-    }
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        await initDatabase();
+        if (cancelled) return;
+        ensureUpcomingDoses();
+        void syncDoseReminders();
+      } catch (cause) {
+        if (!cancelled) {
+          setError(cause instanceof Error ? cause.message : 'Could not open local database');
+        }
+      } finally {
+        if (!cancelled) {
+          setReady(true);
+          SplashScreen.hideAsync();
+        }
+      }
+    })();
 
     const sub = AppState.addEventListener('change', (next) => {
       if (next === 'active') {
-        ensureUpcomingDoses();
-        void syncDoseReminders();
+        try {
+          ensureUpcomingDoses();
+          void syncDoseReminders();
+        } catch {
+          // database may still be opening
+        }
       }
     });
-    return () => sub.remove();
+    return () => {
+      cancelled = true;
+      sub.remove();
+    };
   }, []);
 
   const navigationTheme = {

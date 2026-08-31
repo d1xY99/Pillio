@@ -8,15 +8,17 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    Cross-Origin-Embedder-Policy = "credentialless"
+    Cross-Origin-Embedder-Policy = "require-corp"
     Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Resource-Policy = "same-origin"
 
 [[headers]]
   for = "/**/*.wasm"
   [headers.values]
     Content-Type = "application/wasm"
-    Cross-Origin-Embedder-Policy = "credentialless"
+    Cross-Origin-Embedder-Policy = "require-corp"
     Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Resource-Policy = "same-origin"
 
 [[redirects]]
   from = "/*"

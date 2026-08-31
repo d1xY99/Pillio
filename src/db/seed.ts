@@ -1,6 +1,5 @@
 import { count } from 'drizzle-orm';
 
-import type { AppDatabase } from '@/db/client';
 import { exercises } from '@/db/schema';
 import type { MuscleGroup } from '@/db/types';
 
@@ -23,7 +22,7 @@ const PRESET_EXERCISES: { id: string; name: string; muscleGroup: MuscleGroup }[]
   { id: 'ex_plank', name: 'Plank', muscleGroup: 'core' },
 ];
 
-export function seedExercises(db: AppDatabase) {
+export function seedExercises(db: any) {
   const [row] = db.select({ value: count() }).from(exercises).all();
   if ((row?.value ?? 0) > 0) return;
 

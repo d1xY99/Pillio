@@ -1,5 +1,10 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+export type SqlExecutor = {
+  exec: (sql: string) => void;
+  getUserVersion: () => number;
+};
+
 const MIGRATION_1 = [
   `CREATE TABLE IF NOT EXISTS supplements (
     id TEXT PRIMARY KEY NOT NULL,
@@ -89,27 +94,38 @@ const MIGRATIONS: { version: number; statements: string[] }[] = [
   { version: 1, statements: MIGRATION_1 },
 ];
 
-export function migrate(database: SQLiteDatabase) {
-  database.execSync('PRAGMA journal_mode = WAL;');
-  database.execSync('PRAGMA foreign_keys = ON;');
-
-  const row = database.getFirstSync<{ user_version: number }>('PRAGMA user_version');
-  let current = row?.user_version ?? 0;
+export function applySqlMigrations(executor: SqlExecutor) {
+  executor.exec('PRAGMA foreign_keys = ON;');
+  let current = executor.getUserVersion();
 
   for (const migration of MIGRATIONS) {
     if (migration.version <= current) continue;
 
-    database.execSync('BEGIN');
+    executor.exec('BEGIN');
     try {
       for (const statement of migration.statements) {
-        database.execSync(statement);
+        executor.exec(statement);
       }
-      database.execSync(`PRAGMA user_version = ${migration.version}`);
-      database.execSync('COMMIT');
+      executor.exec(`PRAGMA user_version = ${migration.version}`);
+      executor.exec('COMMIT');
       current = migration.version;
     } catch (error) {
-      database.execSync('ROLLBACK');
+      executor.exec('ROLLBACK');
       throw error;
     }
   }
+}
+
+export function migrate(database: SQLiteDatabase) {
+  try {
+    database.execSync('PRAGMA journal_mode = WAL;');
+  } catch {
+    // WAL is not available on every web backend
+  }
+
+  applySqlMigrations({
+    exec: (sql) => database.execSync(sql),
+    getUserVersion: () =>
+      database.getFirstSync<{ user_version: number }>('PRAGMA user_version')?.user_version ?? 0,
+  });
 }
