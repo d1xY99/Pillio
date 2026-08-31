@@ -1,7 +1,8 @@
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { useAuth } from '@/auth/auth-context';
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -16,6 +17,8 @@ import { syncDoseReminders } from '@/notifications/sync';
 
 export default function SettingsScreen() {
   const theme = useTheme();
+  const router = useRouter();
+  const { user, configured, signOut } = useAuth();
   const [permission, setPermission] = useState<'granted' | 'denied' | 'undetermined'>('undetermined');
   const [webStatus, setWebStatus] = useState<
     'unsupported' | 'needs-install' | 'denied' | 'granted' | 'off'
@@ -46,6 +49,31 @@ export default function SettingsScreen() {
 
   return (
     <ThemedView style={styles.screen}>
+      <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <ThemedText type="headline">Account</ThemedText>
+        {user ? (
+          <>
+            <ThemedText type="callout" themeColor="textSecondary">
+              Signed in as {user.email}. Your stack is saved in the cloud.
+            </ThemedText>
+            <Button label="Sign out" variant="secondary" onPress={() => void signOut()} />
+          </>
+        ) : (
+          <>
+            <ThemedText type="callout" themeColor="textSecondary">
+              {configured
+                ? 'Sign in so deleting the Home Screen icon does not wipe your stack.'
+                : 'Add Supabase keys to enable cloud backup (see supabase/README.md).'}
+            </ThemedText>
+            <Button
+              label="Sign in / Create account"
+              onPress={() => router.push('/auth')}
+              disabled={!configured}
+            />
+          </>
+        )}
+      </View>
+
       <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <ThemedText type="headline">This phone is enough</ThemedText>
         <ThemedText type="callout" themeColor="textSecondary">

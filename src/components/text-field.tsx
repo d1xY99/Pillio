@@ -12,6 +12,7 @@ type TextFieldProps = {
   keyboardType?: KeyboardTypeOptions;
   multiline?: boolean;
   autoFocus?: boolean;
+  secureTextEntry?: boolean;
 };
 
 export function TextField({
@@ -22,6 +23,7 @@ export function TextField({
   keyboardType,
   multiline,
   autoFocus,
+  secureTextEntry,
 }: TextFieldProps) {
   const theme = useTheme();
 
@@ -38,6 +40,7 @@ export function TextField({
         keyboardType={keyboardType}
         multiline={multiline}
         autoFocus={autoFocus}
+        secureTextEntry={secureTextEntry}
         autoCapitalize={keyboardType ? 'none' : 'sentences'}
         style={[
           styles.input,

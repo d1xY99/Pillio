@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { AppState, Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { AuthProvider } from '@/auth/auth-context';
 import { ThemedText } from '@/components/themed-text';
 import { initDatabase } from '@/db/client';
 import { ensureUpcomingDoses } from '@/domain/doses';
@@ -92,6 +93,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.background }}>
+      <AuthProvider>
       <ThemeProvider value={navigationTheme}>
         <StatusBar style={themeName === 'dark' ? 'light' : 'dark'} />
         <Stack
@@ -104,6 +106,14 @@ export default function RootLayout() {
             headerShadowVisible: false,
           }}>
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="auth"
+            options={{
+              headerShown: true,
+              title: 'Account',
+              presentation: 'modal',
+            }}
+          />
           <Stack.Screen
             name="settings"
             options={{
@@ -157,6 +167,7 @@ export default function RootLayout() {
           />
         </Stack>
       </ThemeProvider>
+      </AuthProvider>
     </GestureHandlerRootView>
   );
 }
