@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/auth-context';
 import { Button } from '@/components/button';
+import { Kicker } from '@/components/kicker';
 import { Screen } from '@/components/screen';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
@@ -13,7 +14,7 @@ import { useTheme } from '@/hooks/use-theme';
 export default function AuthScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { signIn, signUp, configured } = useAuth();
+  const { signIn, signUp, configured, user, loading } = useAuth();
   const [mode, setMode] = useState<'in' | 'up'>('in');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -21,6 +22,10 @@ export default function AuthScreen() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!loading && user) router.replace('/');
+  }, [loading, user, router]);
 
   async function submit() {
     setError(null);
@@ -49,12 +54,13 @@ export default function AuthScreen() {
       setError(message);
       return;
     }
-    router.back();
+    router.replace('/');
   }
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen>
+        <Kicker label="PILLIO" />
         <View style={[styles.switch, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Pressable
             onPress={() => {
@@ -78,10 +84,10 @@ export default function AuthScreen() {
           </Pressable>
         </View>
 
-        <ThemedText type="title">{mode === 'in' ? 'Welcome back' : 'Create your account'}</ThemedText>
+        <ThemedText type="title">{mode === 'in' ? 'Sign in to continue' : 'Create your account'}</ThemedText>
         <ThemedText type="callout" themeColor="textSecondary" style={styles.lead}>
           {mode === 'in'
-            ? 'Sign in to load your stack from the cloud.'
+            ? 'Your stack lives on your account. Sign in to open it on this phone.'
             : 'New here? Add your name so the backup is yours.'}
         </ThemedText>
 
@@ -141,6 +147,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
     borderWidth: 1,
     padding: 4,
+    marginTop: Spacing.four,
     marginBottom: Spacing.four,
     gap: 4,
   },

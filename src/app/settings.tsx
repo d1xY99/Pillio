@@ -65,7 +65,9 @@ export default function SettingsScreen() {
               disabled={signingOut}
               onPress={() => {
                 setSigningOut(true);
-                void signOut().finally(() => setSigningOut(false));
+                void signOut()
+                  .then(() => router.replace('/auth'))
+                  .finally(() => setSigningOut(false));
               }}
             />
           </>

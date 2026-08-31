@@ -1,11 +1,11 @@
-import { DarkTheme, DefaultTheme, ThemeProvider, Stack } from 'expo-router';
+import { DarkTheme, DefaultTheme, ThemeProvider, Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { AppState, Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { AuthProvider } from '@/auth/auth-context';
+import { AuthProvider, useAuth } from '@/auth/auth-context';
 import { ThemedText } from '@/components/themed-text';
 import { initDatabase } from '@/db/client';
 import { ensureUpcomingDoses } from '@/domain/doses';
@@ -94,81 +94,109 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.background }}>
       <AuthProvider>
-      <ThemeProvider value={navigationTheme}>
-        <StatusBar style={themeName === 'dark' ? 'light' : 'dark'} />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: theme.background },
-            headerStyle: { backgroundColor: theme.background },
-            headerTintColor: theme.accent,
-            headerTitleStyle: { color: theme.text, fontWeight: '600' },
-            headerShadowVisible: false,
-          }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="auth"
-            options={{
-              headerShown: true,
-              title: 'Account',
-              presentation: 'modal',
-            }}
-          />
-          <Stack.Screen
-            name="settings"
-            options={{
-              headerShown: true,
-              title: 'Settings',
-            }}
-          />
-          <Stack.Screen
-            name="supplement/[id]"
-            options={{
-              headerShown: true,
-              title: 'Supplement',
-            }}
-          />
-          <Stack.Screen
-            name="supplement/form"
-            options={{
-              headerShown: true,
-              title: 'Add to stack',
-              presentation: 'modal',
-            }}
-          />
-          <Stack.Screen
-            name="workout/[id]"
-            options={{
-              headerShown: true,
-              title: 'Workout',
-            }}
-          />
-          <Stack.Screen
-            name="exercise/[id]"
-            options={{
-              headerShown: true,
-              title: 'Exercise',
-            }}
-          />
-          <Stack.Screen
-            name="exercise/picker"
-            options={{
-              headerShown: true,
-              title: 'Add exercise',
-              presentation: 'modal',
-            }}
-          />
-          <Stack.Screen
-            name="photo/compare"
-            options={{
-              headerShown: true,
-              title: 'Compare photos',
-            }}
-          />
-        </Stack>
-      </ThemeProvider>
+        <ThemeProvider value={navigationTheme}>
+          <StatusBar style={themeName === 'dark' ? 'light' : 'dark'} />
+          <RootNavigator />
+        </ThemeProvider>
       </AuthProvider>
     </GestureHandlerRootView>
+  );
+}
+
+function RootNavigator() {
+  const theme = useTheme();
+  const router = useRouter();
+  const segments = useSegments();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (loading) return;
+    const onAuth = segments[0] === 'auth';
+    if (!user && !onAuth) router.replace('/auth');
+    else if (user && onAuth) router.replace('/');
+  }, [loading, user, segments, router]);
+
+  if (loading) {
+    return <View style={[styles.boot, { backgroundColor: theme.background }]} />;
+  }
+
+  const signedIn = Boolean(user);
+
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: theme.background },
+        headerStyle: { backgroundColor: theme.background },
+        headerTintColor: theme.accent,
+        headerTitleStyle: { color: theme.text, fontWeight: '600' },
+        headerShadowVisible: false,
+      }}>
+      <Stack.Protected guard={signedIn}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="settings"
+          options={{
+            headerShown: true,
+            title: 'Settings',
+          }}
+        />
+        <Stack.Screen
+          name="supplement/[id]"
+          options={{
+            headerShown: true,
+            title: 'Supplement',
+          }}
+        />
+        <Stack.Screen
+          name="supplement/form"
+          options={{
+            headerShown: true,
+            title: 'Add to stack',
+            presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
+          name="workout/[id]"
+          options={{
+            headerShown: true,
+            title: 'Workout',
+          }}
+        />
+        <Stack.Screen
+          name="exercise/[id]"
+          options={{
+            headerShown: true,
+            title: 'Exercise',
+          }}
+        />
+        <Stack.Screen
+          name="exercise/picker"
+          options={{
+            headerShown: true,
+            title: 'Add exercise',
+            presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
+          name="photo/compare"
+          options={{
+            headerShown: true,
+            title: 'Compare photos',
+          }}
+        />
+      </Stack.Protected>
+      <Stack.Protected guard={!signedIn}>
+        <Stack.Screen
+          name="auth"
+          options={{
+            headerShown: false,
+            animation: 'fade',
+            gestureEnabled: false,
+          }}
+        />
+      </Stack.Protected>
+    </Stack>
   );
 }
 
