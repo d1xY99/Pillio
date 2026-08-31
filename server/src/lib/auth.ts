@@ -1,5 +1,6 @@
 import { createMiddleware } from 'hono/factory';
 
+import { getAuthUser } from './gotrue';
 import { userClient } from './supabase';
 
 export type AuthEnv = {
@@ -15,12 +16,12 @@ export const requireUser = createMiddleware<AuthEnv>(async (c, next) => {
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
   if (!token) return c.json({ error: 'Sign in required' }, 401);
 
-  const { data, error } = await userClient(token).auth.getUser(token);
-  if (error || !data.user) return c.json({ error: 'Session expired' }, 401);
+  const user = await getAuthUser(token);
+  if (!user) return c.json({ error: 'Session expired' }, 401);
 
   c.set('token', token);
-  c.set('userId', data.user.id);
-  c.set('email', data.user.email ?? '');
+  c.set('userId', user.id);
+  c.set('email', user.email ?? '');
   await next();
 });
 
