@@ -11,12 +11,13 @@ export function ArtThumb({
   size = 48,
 }: {
   type?: SupplementType;
-  source?: number;
+  source?: (typeof TYPE_ART)['vitamin'];
   size?: number;
 }) {
+  const resolved = source ?? (type ? TYPE_ART[type] : undefined) ?? TYPE_ART.vitamin;
   return (
     <Image
-      source={source ?? (type ? TYPE_ART[type] : undefined)}
+      source={resolved}
       style={[styles.thumb, { width: size, height: size, borderRadius: Radius.sm }]}
       contentFit="cover"
     />

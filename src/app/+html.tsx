@@ -21,6 +21,14 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="icon" href="/favicon.png" />
         <title>Pillio</title>
         <ScrollViewStyleReset />
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              html, body, #root { height: 100%; min-height: 100dvh; background: #060708; }
+              a[href*="netlify.com"] { display: none !important; }
+            `,
+          }}
+        />
       </head>
       <body>{children}</body>
     </html>

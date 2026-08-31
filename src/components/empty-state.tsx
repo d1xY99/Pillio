@@ -1,14 +1,14 @@
-import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { GlassCard } from '@/components/glass-card';
 import { ThemedText } from '@/components/themed-text';
+import { UiIcon, type UiIconName } from '@/components/ui-icon';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type EmptyStateProps = {
-  icon: SymbolViewProps['name'];
+  icon: UiIconName;
   title: string;
   body: string;
   actionLabel?: string;
@@ -21,7 +21,7 @@ export function EmptyState({ icon, title, body, actionLabel, onAction }: EmptySt
   return (
     <GlassCard style={styles.card}>
       <View style={[styles.iconWrap, { backgroundColor: theme.accentMuted }]}>
-        <SymbolView name={icon} tintColor={theme.accent} size={28} weight="medium" />
+        <UiIcon name={icon} color={theme.accent} size={28} />
       </View>
       <ThemedText type="headline">{title}</ThemedText>
       <ThemedText type="callout" themeColor="textSecondary" style={styles.body}>

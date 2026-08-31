@@ -41,6 +41,7 @@ export default function TodayScreen() {
   const db = getDb();
   const [nowTick, setNowTick] = useState(0);
   const [permission, setPermission] = useState<'granted' | 'denied' | 'undetermined' | 'web'>('undetermined');
+  const [webAlertsOn, setWebAlertsOn] = useState(false);
   const start = startOfLocalDay();
   const end = endOfLocalDay();
 
@@ -50,6 +51,9 @@ export default function TodayScreen() {
       setNowTick((value) => value + 1);
       if (Platform.OS === 'web') {
         setPermission('web');
+        void import('@/notifications/web').then((mod) =>
+          mod.getWebReminderStatus().then((status) => setWebAlertsOn(status === 'granted')),
+        );
       } else {
         void getReminderPermission().then(setPermission);
       }
@@ -88,7 +92,7 @@ export default function TodayScreen() {
         }
       />
 
-      {Platform.OS === 'web' ? (
+      {Platform.OS === 'web' && !webAlertsOn ? (
         <FadeIn>
           <GlassCard style={styles.permission}>
             <ThemedText type="headline">No laptop needed</ThemedText>
@@ -99,7 +103,7 @@ export default function TodayScreen() {
             <Button label="Open settings" onPress={() => router.push('/settings')} />
           </GlassCard>
         </FadeIn>
-      ) : permission !== 'granted' ? (
+      ) : Platform.OS !== 'web' && permission !== 'granted' ? (
         <FadeIn>
           <GlassCard glow style={styles.permission}>
             <ThemedText type="headline">Turn on reminders</ThemedText>

@@ -18,7 +18,7 @@ export function Screen({ children, scroll = true, padded = true }: ScreenProps) 
   const contentStyle = [
     styles.content,
     padded && styles.padded,
-    { paddingTop, paddingBottom: Spacing.six },
+    { paddingTop, paddingBottom: Math.max(insets.bottom, 24) + 88 },
   ];
 
   if (!scroll) {

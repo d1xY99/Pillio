@@ -1,4 +1,3 @@
-import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet } from 'react-native';
 import Animated, {
   ZoomIn,
@@ -7,6 +6,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
+import { UiIcon } from '@/components/ui-icon';
 import { useTheme } from '@/hooks/use-theme';
 
 type CheckButtonProps = {
@@ -44,7 +44,7 @@ export function CheckButton({ checked, overdue, onPress }: CheckButtonProps) {
         ]}>
         {checked ? (
           <Animated.View entering={ZoomIn.springify().damping(14)}>
-            <SymbolView name="checkmark" tintColor="#0B0D10" size={18} weight="bold" />
+            <UiIcon name="checkmark" color="#0B0D10" size={18} />
           </Animated.View>
         ) : null}
       </Animated.View>

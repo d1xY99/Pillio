@@ -1,8 +1,8 @@
-import { SymbolView } from 'expo-symbols';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressScale } from '@/components/press-scale';
+import { UiIcon } from '@/components/ui-icon';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -22,17 +22,11 @@ export function Fab({ onPress, accessibilityLabel }: FabProps) {
         styles.fab,
         {
           backgroundColor: theme.accent,
-          bottom: Math.max(insets.bottom, Spacing.three) + 16,
+          bottom: Math.max(insets.bottom, Spacing.three) + 28,
           shadowColor: theme.accent,
         },
       ]}>
-      <SymbolView
-        name="plus"
-        tintColor="#06110D"
-        size={26}
-        weight="bold"
-        accessibilityLabel={accessibilityLabel}
-      />
+      <UiIcon name="plus" color="#06110D" size={28} />
     </PressScale>
   );
 }
@@ -49,5 +43,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.55,
     shadowRadius: 22,
     shadowOffset: { width: 0, height: 10 },
+    zIndex: 20,
   },
 });
