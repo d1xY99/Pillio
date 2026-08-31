@@ -8,9 +8,21 @@ const CRON_SECRET = process.env.PILLIO_CRON_SECRET || 'pillio-dispatch-2026';
 
 webpush.setVapidDetails('mailto:pillio@local', VAPID_PUBLIC, VAPID_PRIVATE);
 
-export default async (request) => {
+export const config = {
+  schedule: '* * * * *',
+};
+
+function isAllowed(request) {
   const auth = request.headers.get('authorization') || '';
-  if (auth !== `Bearer ${CRON_SECRET}`) {
+  if (auth === `Bearer ${CRON_SECRET}`) return true;
+  const origin = request.headers.get('origin') || '';
+  if (origin.includes('pillioo.netlify.app') || origin.includes('localhost')) return true;
+  if (!origin && request.method === 'POST') return true;
+  return false;
+}
+
+export default async (request) => {
+  if (!isAllowed(request)) {
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -18,10 +30,12 @@ export default async (request) => {
   const listed = await store.list();
   const now = Date.now();
   let sent = 0;
+  let devices = 0;
 
   for (const blob of listed.blobs ?? []) {
     const record = await store.get(blob.key, { type: 'json' });
     if (!record?.subscription?.endpoint) continue;
+    devices += 1;
 
     const doses = Array.isArray(record.doses) ? record.doses : [];
     let changed = false;
@@ -69,5 +83,5 @@ export default async (request) => {
     }
   }
 
-  return Response.json({ ok: true, sent });
+  return Response.json({ ok: true, sent, devices });
 };

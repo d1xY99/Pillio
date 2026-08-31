@@ -83,7 +83,7 @@ export default function SettingsScreen() {
                     setWebStatus(ok ? 'granted' : 'denied');
                     setTestStatus(
                       ok
-                        ? 'Alerts are on. Keep Reminder enabled on each supplement.'
+                        ? 'A test alert should appear now. Keep Reminder enabled on each supplement.'
                         : 'Could not enable alerts. Open Pillio from the Home Screen icon and try again.',
                     );
                     }),

@@ -7,6 +7,8 @@ import { addLocalDays, endOfLocalDay, startOfLocalDay } from '@/domain/time';
 import { VAPID_PUBLIC_KEY } from '@/notifications/vapid';
 
 const DEVICE_KEY = 'pillio.deviceId';
+const notified = new Set<string>();
+let watchdogStarted = false;
 
 export type WebReminderStatus = 'unsupported' | 'needs-install' | 'denied' | 'granted' | 'off';
 
@@ -81,15 +83,17 @@ export async function enableWebReminders(): Promise<boolean> {
       applicationServerKey: vapidKey(),
     });
   }
-  await syncWebReminders();
+  await syncWebReminders({ test: true });
+  startReminderWatchdog();
   return true;
 }
 
 function upcomingDoses() {
   ensureUpcomingDoses();
   const now = Date.now();
-  const to = endOfLocalDay(addLocalDays(startOfLocalDay(now), 7));
-  const open = listDosesBetween(now, to).filter((dose) => !dose.takenAt && !dose.skipped);
+  const from = startOfLocalDay(now);
+  const to = endOfLocalDay(addLocalDays(from, 7));
+  const open = listDosesBetween(from, to).filter((dose) => !dose.takenAt && !dose.skipped);
   const doses: { id: string; at: number; title: string; body: string }[] = [];
 
   for (const dose of open) {
@@ -108,21 +112,71 @@ function upcomingDoses() {
   return doses;
 }
 
-export async function syncWebReminders() {
+async function pingDispatch() {
+  try {
+    await fetch('/.netlify/functions/dispatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch {
+    // ignore
+  }
+}
+
+function notifyLocally(doses: { id: string; at: number; title: string; body: string }[]) {
+  if (Notification.permission !== 'granted') return;
+  const now = Date.now();
+  for (const dose of doses) {
+    if (dose.at > now) continue;
+    if (notified.has(dose.id)) continue;
+    notified.add(dose.id);
+    try {
+      new Notification(dose.title, { body: dose.body, tag: dose.id });
+    } catch {
+      // Safari may require service worker
+    }
+  }
+}
+
+export async function syncWebReminders(options: { test?: boolean } = {}) {
   if (!webPushSupported()) return;
   try {
     await registerWebServiceWorker();
     const subscription = await getExistingSubscription();
+    const doses = upcomingDoses();
     await fetch('/.netlify/functions/reminders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         deviceId: deviceId(),
         subscription: subscription ? subscription.toJSON() : null,
-        doses: upcomingDoses(),
+        doses,
+        test: Boolean(options.test),
       }),
     });
+    notifyLocally(doses);
+    const soon = doses.some((dose) => dose.at <= Date.now() + 90_000);
+    if (soon) await pingDispatch();
+    startReminderWatchdog();
   } catch {
     // offline or function not deployed yet
   }
+}
+
+export function startReminderWatchdog() {
+  if (watchdogStarted || typeof window === 'undefined') return;
+  watchdogStarted = true;
+  const tick = () => {
+    const doses = upcomingDoses();
+    notifyLocally(doses);
+    const due = doses.some((dose) => dose.at <= Date.now());
+    if (due) void pingDispatch();
+  };
+  window.setInterval(tick, 20_000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      void syncWebReminders();
+      tick();
+    }
+  });
 }

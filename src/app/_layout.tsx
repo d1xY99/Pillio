@@ -28,8 +28,9 @@ export default function RootLayout() {
         await initDatabase();
         if (cancelled) return;
         if (Platform.OS === 'web') {
-          const { registerWebServiceWorker } = await import('@/notifications/web');
+          const { registerWebServiceWorker, startReminderWatchdog } = await import('@/notifications/web');
           await registerWebServiceWorker();
+          startReminderWatchdog();
         }
         ensureUpcomingDoses();
         void syncDoseReminders();
