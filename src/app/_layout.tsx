@@ -6,6 +6,7 @@ import { AppState, Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AuthProvider, useAuth } from '@/auth/auth-context';
+import { BootLoading } from '@/components/boot-loading';
 import { ThemedText } from '@/components/themed-text';
 import { initDatabase } from '@/db/client';
 import { ensureUpcomingDoses } from '@/domain/doses';
@@ -77,7 +78,7 @@ export default function RootLayout() {
   };
 
   if (!ready) {
-    return <View style={[styles.boot, { backgroundColor: theme.background }]} />;
+    return <BootLoading message="Starting Pillio…" />;
   }
 
   if (error) {
@@ -107,17 +108,17 @@ function RootNavigator() {
   const theme = useTheme();
   const router = useRouter();
   const segments = useSegments();
-  const { user, loading } = useAuth();
+  const { user, loading, hydrating } = useAuth();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || hydrating) return;
     const onAuth = segments[0] === 'auth';
     if (!user && !onAuth) router.replace('/auth');
     else if (user && onAuth) router.replace('/');
-  }, [loading, user, segments, router]);
+  }, [loading, hydrating, user, segments, router]);
 
-  if (loading) {
-    return <View style={[styles.boot, { backgroundColor: theme.background }]} />;
+  if (loading || hydrating) {
+    return <BootLoading />;
   }
 
   const signedIn = Boolean(user);

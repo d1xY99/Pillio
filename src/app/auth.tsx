@@ -14,7 +14,7 @@ import { useTheme } from '@/hooks/use-theme';
 export default function AuthScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { signIn, signUp, configured, user, loading } = useAuth();
+  const { signIn, signUp, configured, user, loading, hydrating } = useAuth();
   const [mode, setMode] = useState<'in' | 'up'>('in');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -24,8 +24,8 @@ export default function AuthScreen() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) router.replace('/');
-  }, [loading, user, router]);
+    if (!loading && !hydrating && user) router.replace('/');
+  }, [loading, hydrating, user, router]);
 
   async function submit() {
     setError(null);
@@ -131,8 +131,8 @@ export default function AuthScreen() {
             </ThemedText>
           ) : null}
           <Button
-            label={busy ? 'Please wait…' : mode === 'in' ? 'Sign in' : 'Create account'}
-            disabled={busy || !configured}
+            label={busy || hydrating ? 'Loading your stack…' : mode === 'in' ? 'Sign in' : 'Create account'}
+            disabled={busy || hydrating || !configured}
             onPress={() => void submit()}
           />
         </View>

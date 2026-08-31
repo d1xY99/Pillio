@@ -1,5 +1,5 @@
 import type { Session, User } from '@supabase/supabase-js';
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
 import { cancelScheduledPush, clearLocalUserData, pullFromCloud, pushToCloud } from '@/sync/cloud';
@@ -9,6 +9,7 @@ type AuthContextValue = {
   session: Session | null;
   user: User | null;
   loading: boolean;
+  hydrating: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (name: string, email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
@@ -20,6 +21,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const configured = isSupabaseConfigured();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(configured);
+  const [hydrating, setHydrating] = useState(false);
+  const hydrateLock = useRef<Promise<void> | null>(null);
+
+  async function hydrateFromCloud() {
+    if (hydrateLock.current) return hydrateLock.current;
+    setHydrating(true);
+    hydrateLock.current = (async () => {
+      try {
+        await pullFromCloud();
+        const { ensureUpcomingDoses } = await import('@/domain/doses');
+        ensureUpcomingDoses();
+        const { notifyDbChanged } = await import('@/db/events');
+        notifyDbChanged();
+        const { syncDoseReminders } = await import('@/notifications/sync');
+        await syncDoseReminders();
+        await pushToCloud();
+      } catch {
+        // show whatever is already on this phone
+      } finally {
+        hydrateLock.current = null;
+        setHydrating(false);
+      }
+    })();
+    return hydrateLock.current;
+  }
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -27,7 +53,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void supabase.auth.getSession().then(({ data }) => {
       setSession(data.session ?? null);
-      setLoading(false);
+      if (data.session) {
+        setHydrating(true);
+        setLoading(false);
+        void hydrateFromCloud();
+      } else {
+        setLoading(false);
+      }
     });
 
     let hadSession = false;
@@ -36,6 +68,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(next);
       if (next) hadSession = true;
       if (event === 'INITIAL_SESSION') setLoading(false);
+      if (next && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+        setHydrating(true);
+        setLoading(false);
+      }
+      if (event === 'SIGNED_OUT') {
+        setHydrating(false);
+        setLoading(false);
+      }
       // Defer so we never call auth APIs while this callback holds the lock.
       setTimeout(() => {
         if (event === 'SIGNED_OUT') {
@@ -43,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         if (next && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
-          void pullFromCloud().then(() => pushToCloud());
+          void hydrateFromCloud();
         }
       }, 0);
     });
@@ -59,11 +99,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       user: session?.user ?? null,
       loading,
+      hydrating,
       signIn: async (email, password) => {
         const supabase = getSupabase();
         if (!supabase) return 'Cloud backup is not configured.';
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        return error?.message ?? null;
+        if (error) return error.message;
+        await hydrateFromCloud();
+        return null;
       },
       signUp: async (name, email, password) => {
         const supabase = getSupabase();
@@ -85,6 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!data.session) {
           return 'Check your email to confirm the account, then sign in.';
         }
+        await hydrateFromCloud();
         return null;
       },
       signOut: async () => {
@@ -98,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await clearLocalUserData();
       },
     }),
-    [configured, session, loading],
+    [configured, session, loading, hydrating],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
