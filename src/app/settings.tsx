@@ -88,10 +88,10 @@ export default function SettingsScreen() {
       </View>
 
       <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <ThemedText type="headline">This phone is enough</ThemedText>
+        <ThemedText type="headline">Home Screen</ThemedText>
         <ThemedText type="callout" themeColor="textSecondary">
-          Open https://pillioo.netlify.app from the Home Screen icon. Checking off a dose does not
-          need a laptop.
+          Safari → Share → Add to Home Screen, then open Pillio from that icon so check-offs and
+          reminders run on this phone.
         </ThemedText>
       </View>
 

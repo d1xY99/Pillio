@@ -1,15 +1,17 @@
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/auth-context';
 import { Button } from '@/components/button';
-import { Kicker } from '@/components/kicker';
 import { Screen } from '@/components/screen';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+
+const logo = require('../../assets/images/pillio-logo.png');
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -60,7 +62,9 @@ export default function AuthScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen>
-        <Kicker label="PILLIO" />
+        <View style={styles.brand}>
+          <Image source={logo} style={styles.logo} contentFit="contain" accessibilityLabel="Pillio" />
+        </View>
         <View style={[styles.switch, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Pressable
             onPress={() => {
@@ -142,12 +146,20 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
+  brand: {
+    alignItems: 'center',
+    marginBottom: Spacing.two,
+  },
+  logo: {
+    width: 96,
+    height: 96,
+  },
   switch: {
     flexDirection: 'row',
     borderRadius: Radius.full,
     borderWidth: 1,
     padding: 4,
-    marginTop: Spacing.four,
+    marginTop: Spacing.three,
     marginBottom: Spacing.four,
     gap: 4,
   },

@@ -97,10 +97,10 @@ export default function TodayScreen() {
       {Platform.OS === 'web' && !webAlertsOn ? (
         <FadeIn>
           <GlassCard style={styles.permission}>
-            <ThemedText type="headline">No laptop needed</ThemedText>
+            <ThemedText type="headline">Turn on reminders</ThemedText>
             <ThemedText type="callout" themeColor="textSecondary">
-              Add this site to your Home Screen and use it from the icon. Check off doses anytime —
-              the Mac can be off. Enable alerts in Settings after you open the icon.
+              Share this page → Add to Home Screen, then open Pillio from that icon. In Settings,
+              subscribe in ntfy so alerts still arrive when the phone is locked.
             </ThemedText>
             <Button label="Open settings" onPress={() => router.push('/settings')} />
           </GlassCard>
