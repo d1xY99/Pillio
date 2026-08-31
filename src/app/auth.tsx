@@ -1,28 +1,49 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/auth-context';
 import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 export default function AuthScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const { signIn, signUp, configured } = useAuth();
+  const [mode, setMode] = useState<'in' | 'up'>('in');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [mode, setMode] = useState<'in' | 'up'>('in');
+  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit() {
     setError(null);
+    if (mode === 'up') {
+      if (!name.trim()) {
+        setError('Enter your name.');
+        return;
+      }
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters.');
+        return;
+      }
+      if (password !== confirm) {
+        setError('Passwords do not match.');
+        return;
+      }
+    }
+
     setBusy(true);
     const message =
-      mode === 'in' ? await signIn(email.trim(), password) : await signUp(email.trim(), password);
+      mode === 'in'
+        ? await signIn(email.trim(), password)
+        : await signUp(name.trim(), email.trim(), password);
     setBusy(false);
     if (message) {
       setError(message);
@@ -34,9 +55,34 @@ export default function AuthScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen>
-        <ThemedText type="title">Cloud backup</ThemedText>
+        <View style={[styles.switch, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Pressable
+            onPress={() => {
+              setMode('in');
+              setError(null);
+            }}
+            style={[styles.switchBtn, mode === 'in' && { backgroundColor: theme.accentMuted }]}>
+            <ThemedText type="captionBold" style={{ color: mode === 'in' ? theme.accent : theme.textSecondary }}>
+              Sign in
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              setMode('up');
+              setError(null);
+            }}
+            style={[styles.switchBtn, mode === 'up' && { backgroundColor: theme.accentMuted }]}>
+            <ThemedText type="captionBold" style={{ color: mode === 'up' ? theme.accent : theme.textSecondary }}>
+              Create account
+            </ThemedText>
+          </Pressable>
+        </View>
+
+        <ThemedText type="title">{mode === 'in' ? 'Welcome back' : 'Create your account'}</ThemedText>
         <ThemedText type="callout" themeColor="textSecondary" style={styles.lead}>
-          Sign in to keep your stack if you delete the Home Screen icon or change phones.
+          {mode === 'in'
+            ? 'Sign in to load your stack from the cloud.'
+            : 'New here? Add your name so the backup is yours.'}
         </ThemedText>
 
         {!configured ? (
@@ -46,20 +92,33 @@ export default function AuthScreen() {
         ) : null}
 
         <View style={styles.form}>
+          {mode === 'up' ? (
+            <TextField label="Name" value={name} onChangeText={setName} placeholder="Your name" autoFocus />
+          ) : null}
           <TextField
             label="Email"
             value={email}
             onChangeText={setEmail}
             placeholder="you@email.com"
             keyboardType="email-address"
+            autoFocus={mode === 'in'}
           />
           <TextField
             label="Password"
             value={password}
             onChangeText={setPassword}
-            placeholder="At least 6 characters"
+            placeholder={mode === 'up' ? 'At least 6 characters' : 'Your password'}
             secureTextEntry
           />
+          {mode === 'up' ? (
+            <TextField
+              label="Confirm password"
+              value={confirm}
+              onChangeText={setConfirm}
+              placeholder="Repeat password"
+              secureTextEntry
+            />
+          ) : null}
           {error ? (
             <ThemedText type="callout" themeColor="danger">
               {error}
@@ -70,11 +129,6 @@ export default function AuthScreen() {
             disabled={busy || !configured}
             onPress={() => void submit()}
           />
-          <Button
-            label={mode === 'in' ? 'Need an account? Sign up' : 'Have an account? Sign in'}
-            variant="secondary"
-            onPress={() => setMode(mode === 'in' ? 'up' : 'in')}
-          />
         </View>
       </Screen>
     </KeyboardAvoidingView>
@@ -82,6 +136,20 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
+  switch: {
+    flexDirection: 'row',
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    padding: 4,
+    marginBottom: Spacing.four,
+    gap: 4,
+  },
+  switchBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: Radius.full,
+  },
   lead: {
     marginTop: Spacing.two,
     marginBottom: Spacing.four,

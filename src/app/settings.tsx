@@ -54,7 +54,8 @@ export default function SettingsScreen() {
         {user ? (
           <>
             <ThemedText type="callout" themeColor="textSecondary">
-              Signed in as {user.email}. Your stack is saved in the cloud.
+              Signed in as {user.user_metadata?.display_name ? `${user.user_metadata.display_name} · ` : ''}
+              {user.email}. Your stack is saved in the cloud.
             </ThemedText>
             <Button label="Sign out" variant="secondary" onPress={() => void signOut()} />
           </>

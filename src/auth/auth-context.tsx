@@ -10,7 +10,7 @@ type AuthContextValue = {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
-  signUp: (email: string, password: string) => Promise<string | null>;
+  signUp: (name: string, email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 };
 
@@ -53,11 +53,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         return error?.message ?? null;
       },
-      signUp: async (email, password) => {
+      signUp: async (name, email, password) => {
         const supabase = getSupabase();
         if (!supabase) return 'Cloud backup is not configured.';
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const displayName = name.trim();
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { display_name: displayName } },
+        });
         if (error) return error.message;
+        if (data.user) {
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            email: data.user.email,
+            display_name: displayName,
+          });
+        }
         if (!data.session) {
           return 'Check your email to confirm the account, then sign in.';
         }

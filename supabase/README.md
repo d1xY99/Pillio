@@ -13,6 +13,8 @@ Cloud login is on `feature/supabase-auth` only. `main` is unchanged until you me
 
 SQL Editor → paste and run `supabase/schema.sql`.
 
+If you already ran the first schema, also run `supabase/add-display-name.sql`.
+
 In Authentication → Providers, keep Email enabled.  
 For testing you can disable “Confirm email” in Authentication → Providers → Email.
 
