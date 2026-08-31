@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { ThemedText } from '@/components/themed-text';
 import { initDatabase } from '@/db/client';
+import { ensureUpcomingDoses } from '@/domain/doses';
 import { useTheme, useThemeName } from '@/hooks/use-theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -20,6 +21,7 @@ export default function RootLayout() {
   useEffect(() => {
     try {
       initDatabase();
+      ensureUpcomingDoses();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not open local database');
     } finally {

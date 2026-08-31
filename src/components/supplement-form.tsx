@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
@@ -28,9 +28,10 @@ type SupplementFormProps = {
   initial?: Partial<SupplementInput>;
   submitLabel: string;
   onSubmit: (input: SupplementInput) => void;
+  children?: ReactNode;
 };
 
-export function SupplementFormFields({ initial, submitLabel, onSubmit }: SupplementFormProps) {
+export function SupplementFormFields({ initial, submitLabel, onSubmit, children }: SupplementFormProps) {
   const theme = useTheme();
   const [name, setName] = useState(initial?.name ?? '');
   const [type, setType] = useState<SupplementType>(initial?.type ?? 'vitamin');
@@ -124,6 +125,8 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit }: Supplem
         placeholder="Optional — timing, brand, reconstitution..."
         multiline
       />
+
+      {children}
 
       {error ? (
         <ThemedText type="callout" themeColor="danger">

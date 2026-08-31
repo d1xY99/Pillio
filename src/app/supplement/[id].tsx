@@ -1,19 +1,26 @@
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { eq } from 'drizzle-orm';
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { Heatmap } from '@/components/heatmap';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { TypeBadge } from '@/components/type-badge';
 import { FORM_LABELS, formatDose } from '@/constants/catalog';
 import { Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
+import { listDoseHistory } from '@/db/queries/doses';
+import { listSchedulesForSupplement } from '@/db/queries/schedules';
 import { setSupplementArchived } from '@/db/queries/supplements';
-import { supplements } from '@/db/schema';
+import { doseLogs, supplements } from '@/db/schema';
 import type { SupplementForm, SupplementType } from '@/db/types';
+import { adherenceDays } from '@/domain/adherence';
+import { ensureDosesForRange } from '@/domain/doses';
+import { draftFromSchedules, describeSchedule } from '@/domain/schedule';
+import { addLocalDays, endOfLocalDay, formatDateTime, startOfLocalDay } from '@/domain/time';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function SupplementDetailScreen() {
@@ -26,14 +33,42 @@ export default function SupplementDetailScreen() {
     db.select().from(supplements).where(eq(supplements.id, id ?? '')),
     [id],
   );
+  const { updatedAt: doseTick } = useLiveQuery(
+    db.select().from(doseLogs).where(eq(doseLogs.supplementId, id ?? '')),
+    [id],
+  );
   const item = data[0];
 
   useEffect(() => {
     navigation.setOptions({ title: item?.name ?? 'Supplement' });
   }, [item?.name, navigation]);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      const rows = listSchedulesForSupplement(id);
+      const earliest = rows.length
+        ? Math.min(...rows.map((row) => startOfLocalDay(row.startDate)))
+        : startOfLocalDay();
+      const from = Math.max(earliest, addLocalDays(startOfLocalDay(), -83));
+      ensureDosesForRange(from, endOfLocalDay());
+    }, [id]),
+  );
+
+  const schedules = item ? listSchedulesForSupplement(item.id) : [];
+  const scheduleLabel = describeSchedule(draftFromSchedules(schedules));
+  const history = useMemo(
+    () => (item ? listDoseHistory(item.id, 40) : []),
+    [item, doseTick],
+  );
+  const heat = useMemo(() => (item ? adherenceDays(item.id) : []), [item, doseTick]);
+
   if (!updatedAt) {
-    return <Screen><ThemedText themeColor="textSecondary">Loading…</ThemedText></Screen>;
+    return (
+      <Screen>
+        <ThemedText themeColor="textSecondary">Loading…</ThemedText>
+      </Screen>
+    );
   }
 
   if (!item) {
@@ -73,6 +108,16 @@ export default function SupplementDetailScreen() {
         <ThemedText type="callout" themeColor="textSecondary">
           {FORM_LABELS[item.form as SupplementForm]}
         </ThemedText>
+        <ThemedText type="callout" themeColor="textSecondary">
+          {schedules.length ? scheduleLabel : 'No schedule yet'}
+        </ThemedText>
+      </View>
+
+      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <ThemedText type="captionBold" themeColor="textTertiary">
+          ADHERENCE
+        </ThemedText>
+        <Heatmap days={heat} />
       </View>
 
       {item.notes ? (
@@ -84,13 +129,37 @@ export default function SupplementDetailScreen() {
         </View>
       ) : null}
 
+      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <ThemedText type="captionBold" themeColor="textTertiary">
+          DOSE HISTORY
+        </ThemedText>
+        {history.length === 0 ? (
+          <ThemedText type="callout" themeColor="textSecondary">
+            Nothing logged yet. Check off doses on Today to build history.
+          </ThemedText>
+        ) : (
+          history.map((dose) => (
+            <View key={dose.id} style={styles.historyRow}>
+              <ThemedText type="callout">{formatDateTime(dose.scheduledFor)}</ThemedText>
+              <ThemedText
+                type="captionBold"
+                themeColor={dose.takenAt ? 'accent' : dose.skipped ? 'textTertiary' : 'danger'}>
+                {dose.takenAt
+                  ? `${formatDose(dose.amount, dose.unit)} taken`
+                  : dose.skipped
+                    ? 'Skipped'
+                    : 'Open'}
+              </ThemedText>
+            </View>
+          ))
+        )}
+      </View>
+
       <View style={styles.actions}>
         <Button
           label="Edit"
           variant="secondary"
-          onPress={() =>
-            router.push({ pathname: '/supplement/form', params: { id: item.id } })
-          }
+          onPress={() => router.push({ pathname: '/supplement/form', params: { id: item.id } })}
         />
         <Button
           label={item.archived ? 'Restore' : 'Archive'}
@@ -122,8 +191,14 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     marginBottom: Spacing.three,
   },
+  historyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
   actions: {
     gap: Spacing.two,
     marginTop: Spacing.two,
+    marginBottom: Spacing.five,
   },
 });

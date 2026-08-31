@@ -1,12 +1,22 @@
-import { useRouter } from 'expo-router';
+import { and, gte, lte } from 'drizzle-orm';
+import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { DoseRow } from '@/components/dose-row';
 import { EmptyState } from '@/components/empty-state';
 import { IconButton } from '@/components/icon-button';
 import { Screen } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
+import { getDb } from '@/db/client';
+import { markDoseTaken, undoDose } from '@/db/queries/doses';
+import { doseLogs } from '@/db/schema';
+import type { DoseUnit } from '@/db/types';
+import { ensureUpcomingDoses, groupDosesByTime, listTodayDoses } from '@/domain/doses';
+import { endOfLocalDay, formatTimeMinutes, startOfLocalDay } from '@/domain/time';
 import { useTheme } from '@/hooks/use-theme';
 
 function formatToday() {
@@ -20,8 +30,34 @@ function formatToday() {
 export default function TodayScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const taken = 0;
-  const total = 0;
+  const db = getDb();
+  const [nowTick, setNowTick] = useState(0);
+  const start = startOfLocalDay();
+  const end = endOfLocalDay();
+
+  useFocusEffect(
+    useCallback(() => {
+      ensureUpcomingDoses();
+      setNowTick((value) => value + 1);
+    }, []),
+  );
+
+  const { updatedAt } = useLiveQuery(
+    db
+      .select()
+      .from(doseLogs)
+      .where(and(gte(doseLogs.scheduledFor, start), lte(doseLogs.scheduledFor, end))),
+    [start, end],
+  );
+
+  const doses = useMemo(
+    () => listTodayDoses(),
+    // logs and focus both should rebuild the joined view
+    [updatedAt, nowTick],
+  );
+  const groups = groupDosesByTime(doses);
+  const taken = doses.filter((dose) => dose.takenAt).length;
+  const total = doses.length;
 
   return (
     <Screen>
@@ -38,25 +74,62 @@ export default function TodayScreen() {
       />
 
       <View style={[styles.summary, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <View style={[styles.ring, { borderColor: theme.border }]}>
+        <View
+          style={[
+            styles.ring,
+            { borderColor: total > 0 && taken === total ? theme.accent : theme.border },
+          ]}>
           <ThemedText type="headline">{taken}</ThemedText>
           <ThemedText type="caption" themeColor="textTertiary">
             of {total}
           </ThemedText>
         </View>
         <View style={styles.summaryCopy}>
-          <ThemedText type="headline">No doses yet</ThemedText>
+          <ThemedText type="headline">
+            {total === 0 ? 'Nothing due' : taken === total ? 'Stack complete' : `${total - taken} remaining`}
+          </ThemedText>
           <ThemedText type="callout" themeColor="textSecondary">
             Check off what you take. Reminders wait until the due time if a dose is still open.
           </ThemedText>
         </View>
       </View>
 
-      <EmptyState
-        icon="checkmark.circle"
-        title="Your day is clear"
-        body="Add vitamins, peptides, and supplements in Stack to see them here."
-      />
+      {total === 0 ? (
+        <EmptyState
+          icon="checkmark.circle"
+          title="Your day is clear"
+          body="Add vitamins, peptides, and supplements in Stack to see them here."
+        />
+      ) : (
+        <View style={styles.groups}>
+          {groups.map((group) => (
+            <View key={group.time} style={styles.group}>
+              <ThemedText type="captionBold" themeColor="textTertiary">
+                {formatTimeMinutes(group.time).toUpperCase()}
+              </ThemedText>
+              {group.items.map((item) => (
+                <DoseRow
+                  key={item.id}
+                  item={item}
+                  onPress={() =>
+                    router.push({ pathname: '/supplement/[id]', params: { id: item.supplementId } })
+                  }
+                  onToggle={() => {
+                    if (item.takenAt) {
+                      undoDose(item.id);
+                    } else {
+                      markDoseTaken(item.id, {
+                        amount: item.supplement.defaultAmount,
+                        unit: item.supplement.defaultUnit as DoseUnit,
+                      });
+                    }
+                  }}
+                />
+              ))}
+            </View>
+          ))}
+        </View>
+      )}
     </Screen>
   );
 }
@@ -82,5 +155,11 @@ const styles = StyleSheet.create({
   summaryCopy: {
     flex: 1,
     gap: Spacing.one,
+  },
+  groups: {
+    gap: Spacing.four,
+  },
+  group: {
+    gap: Spacing.two,
   },
 });

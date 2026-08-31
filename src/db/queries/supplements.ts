@@ -26,6 +26,10 @@ export function listSupplements(options: { archived?: boolean } = {}): Supplemen
     .all();
 }
 
+export function listAllSupplements(): Supplement[] {
+  return getDb().select().from(supplements).orderBy(supplements.name).all();
+}
+
 export function getSupplement(id: string): Supplement | undefined {
   return getDb().select().from(supplements).where(eq(supplements.id, id)).get();
 }

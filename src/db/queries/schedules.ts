@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm';
 
 import { getDb } from '@/db/client';
 import { createId } from '@/db/ids';
+import { deleteFutureOpenDoses } from '@/db/queries/doses';
 import { schedules, type NewSchedule, type Schedule } from '@/db/schema';
 import type { ScheduleFrequency } from '@/db/types';
 
@@ -93,6 +94,7 @@ export function replaceSchedulesForSupplement(
     .all();
 
   for (const row of existing) {
+    deleteFutureOpenDoses(row.id);
     getDb().update(schedules).set({ active: false }).where(eq(schedules.id, row.id)).run();
   }
 

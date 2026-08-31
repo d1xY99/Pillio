@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNotNull, lte } from 'drizzle-orm';
+import { and, desc, eq, gte, isNotNull, isNull, lte } from 'drizzle-orm';
 
 import { getDb } from '@/db/client';
 import { createId } from '@/db/ids';
@@ -101,6 +101,20 @@ export function undoDose(id: string): DoseLog {
     .where(eq(doseLogs.id, id))
     .run();
   return getDose(id)!;
+}
+
+export function deleteFutureOpenDoses(scheduleId: string, fromMs = Date.now()): void {
+  getDb()
+    .delete(doseLogs)
+    .where(
+      and(
+        eq(doseLogs.scheduleId, scheduleId),
+        isNull(doseLogs.takenAt),
+        eq(doseLogs.skipped, false),
+        gte(doseLogs.scheduledFor, fromMs),
+      ),
+    )
+    .run();
 }
 
 export function listTakenDoses(supplementId: string): DoseLog[] {
