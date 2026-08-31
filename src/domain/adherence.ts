@@ -54,4 +54,26 @@ export function streakCount(supplementId: string): number {
   return streak;
 }
 
+export function overallStreak(now = Date.now()): number {
+  let streak = 0;
+  const today = startOfLocalDay(now);
+
+  for (let offset = 0; offset < 120; offset += 1) {
+    const dayStart = addLocalDays(today, -offset);
+    const dayEnd = endOfLocalDay(dayStart);
+    const due = listDosesBetween(dayStart, dayEnd);
+    if (due.length === 0) continue;
+
+    const allTaken = due.every((dose) => Boolean(dose.takenAt));
+    if (offset === 0 && !allTaken) continue;
+    if (allTaken) {
+      streak += 1;
+      continue;
+    }
+    break;
+  }
+
+  return streak;
+}
+
 export { listDoseHistory };

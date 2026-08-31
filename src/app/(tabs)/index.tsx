@@ -15,6 +15,7 @@ import { getDb } from '@/db/client';
 import { takeDose, untakeDose } from '@/domain/logging';
 import { doseLogs } from '@/db/schema';
 import type { DoseUnit } from '@/db/types';
+import { overallStreak } from '@/domain/adherence';
 import { ensureUpcomingDoses, groupDosesByTime, listTodayDoses } from '@/domain/doses';
 import { endOfLocalDay, formatTimeMinutes, startOfLocalDay } from '@/domain/time';
 import { useTheme } from '@/hooks/use-theme';
@@ -58,6 +59,7 @@ export default function TodayScreen() {
   const groups = groupDosesByTime(doses);
   const taken = doses.filter((dose) => dose.takenAt).length;
   const total = doses.length;
+  const streak = useMemo(() => overallStreak(), [updatedAt, nowTick]);
 
   return (
     <Screen>
@@ -89,7 +91,9 @@ export default function TodayScreen() {
             {total === 0 ? 'Nothing due' : taken === total ? 'Stack complete' : `${total - taken} remaining`}
           </ThemedText>
           <ThemedText type="callout" themeColor="textSecondary">
-            Check off what you take. Reminders wait until the due time if a dose is still open.
+            {streak > 0
+              ? `${streak}-day streak. Reminders wait until the due time if a dose is still open.`
+              : 'Check off what you take. Reminders wait until the due time if a dose is still open.'}
           </ThemedText>
         </View>
       </View>
@@ -99,6 +103,8 @@ export default function TodayScreen() {
           icon="checkmark.circle"
           title="Your day is clear"
           body="Add vitamins, peptides, and supplements in Stack to see them here."
+          actionLabel="Go to Stack"
+          onAction={() => router.push('/stack')}
         />
       ) : (
         <View style={styles.groups}>

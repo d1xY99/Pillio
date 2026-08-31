@@ -1,6 +1,7 @@
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { StyleSheet, View } from 'react-native';
 
+import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -9,9 +10,11 @@ type EmptyStateProps = {
   icon: SymbolViewProps['name'];
   title: string;
   body: string;
+  actionLabel?: string;
+  onAction?: () => void;
 };
 
-export function EmptyState({ icon, title, body }: EmptyStateProps) {
+export function EmptyState({ icon, title, body, actionLabel, onAction }: EmptyStateProps) {
   const theme = useTheme();
 
   return (
@@ -23,6 +26,11 @@ export function EmptyState({ icon, title, body }: EmptyStateProps) {
       <ThemedText type="callout" themeColor="textSecondary" style={styles.body}>
         {body}
       </ThemedText>
+      {actionLabel && onAction ? (
+        <View style={styles.action}>
+          <Button label={actionLabel} onPress={onAction} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -45,5 +53,9 @@ const styles = StyleSheet.create({
   },
   body: {
     textAlign: 'center',
+  },
+  action: {
+    alignSelf: 'stretch',
+    marginTop: Spacing.two,
   },
 });
