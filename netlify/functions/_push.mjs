@@ -45,8 +45,8 @@ export async function sendPush(subscription, dose, ntfyTopic) {
         method: 'POST',
         headers: {
           Title: title,
-          Priority: 'high',
-          Tags: 'pill,alarm_clock',
+          Priority: 'urgent',
+          Tags: 'warning,pill',
           Click: 'https://pillioo.netlify.app/',
         },
         body,
