@@ -18,7 +18,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
 import { listDoseHistory } from '@/db/queries/doses';
 import { listSchedulesForSupplement } from '@/db/queries/schedules';
-import { setSupplementArchived } from '@/db/queries/supplements';
+import { deleteSupplement, setSupplementArchived } from '@/db/queries/supplements';
 import { doseLogs, supplements } from '@/db/schema';
 import type { SupplementForm, SupplementType } from '@/db/types';
 import { adherenceDays } from '@/domain/adherence';
@@ -105,6 +105,25 @@ export default function SupplementDetailScreen() {
     );
   }
 
+  function remove() {
+    Alert.alert(
+      `Delete ${item.name}?`,
+      'This removes it from this phone and the cloud, including its schedule and dose history. Archive if you only want it off Today.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteSupplement(item.id);
+            void syncDoseReminders();
+            router.back();
+          },
+        },
+      ],
+    );
+  }
+
   return (
     <Screen>
       <View style={[styles.hero, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -180,9 +199,10 @@ export default function SupplementDetailScreen() {
         />
         <Button
           label={item.archived ? 'Restore' : 'Archive'}
-          variant={item.archived ? 'primary' : 'danger'}
+          variant={item.archived ? 'primary' : 'secondary'}
           onPress={archive}
         />
+        <Button label="Delete" variant="danger" onPress={remove} />
       </View>
     </Screen>
   );
