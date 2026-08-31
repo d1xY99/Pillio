@@ -134,6 +134,13 @@ function upcomingDoses() {
   return doses;
 }
 
+function remindersEndpoint() {
+  if (typeof window === 'undefined') return null;
+  const host = window.location.hostname;
+  if (host === 'localhost' || host === '127.0.0.1') return null;
+  return '/.netlify/functions/reminders';
+}
+
 export async function syncWebReminders(options: { test?: boolean } = {}) {
   if (typeof window === 'undefined') return;
   try {
@@ -147,8 +154,10 @@ export async function syncWebReminders(options: { test?: boolean } = {}) {
         subscription = null;
       }
     }
+    const endpoint = remindersEndpoint();
+    if (!endpoint) return;
     const doses = upcomingDoses();
-    await fetch('/.netlify/functions/reminders', {
+    await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
