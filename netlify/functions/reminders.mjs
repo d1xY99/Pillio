@@ -1,5 +1,5 @@
 import { getStore } from '@netlify/blobs';
-import { sendPush, shouldAlert } from './_push.mjs';
+import { sendPush } from './_push.mjs';
 
 export default async (request) => {
   if (request.method !== 'POST') {
@@ -28,6 +28,7 @@ export default async (request) => {
   const doses = incoming.map((dose) => ({
     ...dose,
     lastSent: prevById[dose.id]?.lastSent,
+    waitArmed: prevById[dose.id]?.waitArmed,
   }));
 
   let sent = 0;
@@ -51,21 +52,13 @@ export default async (request) => {
   }
 
   const origin = new URL(request.url).origin;
-  if (canSend) {
+  if (canSend && !sendTest) {
     for (const dose of doses) {
       if (!dose?.at) continue;
-      if (shouldAlert(dose, now)) {
-        try {
-          await sendPush(subscription, dose, ntfyTopic);
-          dose.lastSent = now;
-          sent += 1;
-        } catch {
-          // ignore
-        }
-        continue;
-      }
       const waitMs = dose.at - now;
-      if (!dose.lastSent && waitMs > 15_000 && waitMs <= 14 * 60 * 1000) {
+      if (dose.lastSent || dose.waitArmed) continue;
+      if (waitMs > 15_000 && waitMs <= 14 * 60 * 1000) {
+        dose.waitArmed = true;
         fetch(`${origin}/.netlify/functions/wait-send-background`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

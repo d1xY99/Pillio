@@ -8,9 +8,7 @@ import { VAPID_PUBLIC_KEY } from '@/notifications/vapid';
 
 const DEVICE_KEY = 'pillio.deviceId';
 const NTFY_KEY = 'pillio.ntfyTopic';
-const lastLocalAlert = new Map<string, number>();
-const REPEAT_MS = 15 * 60 * 1000;
-let watchdogStarted = false;
+let syncHookStarted = false;
 
 export type WebReminderStatus = 'unsupported' | 'needs-install' | 'denied' | 'granted' | 'off';
 
@@ -136,33 +134,6 @@ function upcomingDoses() {
   return doses;
 }
 
-async function pingDispatch() {
-  try {
-    await fetch('/.netlify/functions/dispatch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } catch {
-    // ignore
-  }
-}
-
-function notifyLocally(doses: { id: string; at: number; title: string; body: string }[]) {
-  if (Notification.permission !== 'granted') return;
-  const now = Date.now();
-  for (const dose of doses) {
-    if (dose.at > now) continue;
-    const previous = lastLocalAlert.get(dose.id) ?? 0;
-    if (now - previous < REPEAT_MS) continue;
-    lastLocalAlert.set(dose.id, now);
-    try {
-      new Notification(dose.title, { body: dose.body, tag: dose.id });
-    } catch {
-      // Safari may require service worker
-    }
-  }
-}
-
 export async function syncWebReminders(options: { test?: boolean } = {}) {
   if (typeof window === 'undefined') return;
   try {
@@ -188,9 +159,6 @@ export async function syncWebReminders(options: { test?: boolean } = {}) {
         test: Boolean(options.test),
       }),
     });
-    notifyLocally(doses);
-    const soon = doses.some((dose) => dose.at <= Date.now() + 90_000);
-    if (soon) await pingDispatch();
     startReminderWatchdog();
   } catch {
     // offline or function not deployed yet
@@ -198,19 +166,11 @@ export async function syncWebReminders(options: { test?: boolean } = {}) {
 }
 
 export function startReminderWatchdog() {
-  if (watchdogStarted || typeof window === 'undefined') return;
-  watchdogStarted = true;
-  const tick = () => {
-    const doses = upcomingDoses();
-    notifyLocally(doses);
-    const due = doses.some((dose) => dose.at <= Date.now());
-    if (due) void pingDispatch();
-  };
-  window.setInterval(tick, 20_000);
+  if (syncHookStarted || typeof window === 'undefined') return;
+  syncHookStarted = true;
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       void syncWebReminders();
-      tick();
     }
   });
 }
