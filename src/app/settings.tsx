@@ -21,11 +21,15 @@ export default function SettingsScreen() {
     'unsupported' | 'needs-install' | 'denied' | 'granted' | 'off'
   >('off');
   const [testStatus, setTestStatus] = useState<string | null>(null);
+  const [ntfyTopic, setNtfyTopic] = useState('');
   const web = Platform.OS === 'web';
 
   const refresh = useCallback(() => {
     if (web) {
-      void import('@/notifications/web').then((mod) => mod.getWebReminderStatus().then(setWebStatus));
+      void import('@/notifications/web').then((mod) => {
+        setNtfyTopic(mod.getNtfyTopic());
+        return mod.getWebReminderStatus().then(setWebStatus);
+      });
       return;
     }
     void getReminderPermission().then(setPermission);
@@ -55,8 +59,26 @@ export default function SettingsScreen() {
         {web ? (
           <>
             <ThemedText type="callout" themeColor="textSecondary">
-              Alerts fire around the due time only if the dose is still unchecked. On iPhone you must
-              open Pillio from the Home Screen icon, then allow notifications.
+              iPhone will not alert from Pillio itself while the phone is locked. Use ntfy (free) for
+              lock-screen alerts. Pillio still only pings if the dose is unchecked.
+            </ThemedText>
+            <ThemedText type="captionBold" themeColor="accent">
+              Topic: {ntfyTopic || '…'}
+            </ThemedText>
+            <Button
+              label="Install ntfy"
+              variant="secondary"
+              onPress={() => void Linking.openURL('https://apps.apple.com/app/ntfy/id1625396347')}
+            />
+            <Button
+              label="Subscribe in ntfy"
+              onPress={() => {
+                if (!ntfyTopic) return;
+                void Linking.openURL(`https://ntfy.sh/${ntfyTopic}`);
+              }}
+            />
+            <ThemedText type="caption" themeColor="textSecondary">
+              In ntfy: Subscribe to topic → paste the topic above. Then send a test.
             </ThemedText>
             <ThemedText type="captionBold" themeColor="accent">
               Status:{' '}
@@ -70,27 +92,19 @@ export default function SettingsScreen() {
                       ? 'Not supported here'
                       : 'Off'}
             </ThemedText>
-            {webStatus === 'needs-install' ? (
-              <ThemedText type="callout" themeColor="textSecondary">
-                Safari → Share → Add to Home Screen, then open the icon and come back here.
-              </ThemedText>
-            ) : (
-              <Button
-                label={webStatus === 'granted' ? 'Resync reminders' : 'Allow notifications'}
-                onPress={() => {
-                  void import('@/notifications/web').then(({ enableWebReminders }) =>
-                    enableWebReminders().then((ok) => {
-                    setWebStatus(ok ? 'granted' : 'denied');
+            <Button
+              label="Send lock-screen test"
+              onPress={() => {
+                void import('@/notifications/web').then(({ enableWebReminders }) =>
+                  enableWebReminders().then(() => {
+                    setWebStatus('granted');
                     setTestStatus(
-                      ok
-                        ? 'A test alert should appear now. Keep Reminder enabled on each supplement.'
-                        : 'Could not enable alerts. Open Pillio from the Home Screen icon and try again.',
+                      'If ntfy is subscribed, lock the phone — the test should still arrive.',
                     );
-                    }),
-                  );
-                }}
-              />
-            )}
+                  }),
+                );
+              }}
+            />
             {testStatus ? (
               <ThemedText type="caption" themeColor="accent">
                 {testStatus}

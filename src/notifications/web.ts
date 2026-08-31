@@ -7,6 +7,7 @@ import { addLocalDays, endOfLocalDay, startOfLocalDay } from '@/domain/time';
 import { VAPID_PUBLIC_KEY } from '@/notifications/vapid';
 
 const DEVICE_KEY = 'pillio.deviceId';
+const NTFY_KEY = 'pillio.ntfyTopic';
 const notified = new Set<string>();
 let watchdogStarted = false;
 
@@ -19,6 +20,21 @@ function deviceId() {
     window.localStorage.setItem(DEVICE_KEY, id);
   }
   return id;
+}
+
+export function getNtfyTopic() {
+  if (typeof window === 'undefined') return '';
+  let topic = window.localStorage.getItem(NTFY_KEY);
+  if (!topic) {
+    const raw = deviceId().replace(/-/g, '').slice(0, 18);
+    topic = `pillio${raw}`;
+    window.localStorage.setItem(NTFY_KEY, topic);
+  }
+  return topic;
+}
+
+export function ntfySubscribeUrl() {
+  return `https://ntfy.sh/${getNtfyTopic()}`;
 }
 
 export function isStandaloneWebApp() {
@@ -71,17 +87,24 @@ function vapidKey() {
 }
 
 export async function enableWebReminders(): Promise<boolean> {
-  if (!webPushSupported()) return false;
-  await registerWebServiceWorker();
-  const permission = await Notification.requestPermission();
-  if (permission !== 'granted') return false;
-  const registration = await navigator.serviceWorker.ready;
-  let subscription = await registration.pushManager.getSubscription();
-  if (!subscription) {
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: vapidKey(),
-    });
+  getNtfyTopic();
+  if (webPushSupported()) {
+    try {
+      await registerWebServiceWorker();
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        const registration = await navigator.serviceWorker.ready;
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: vapidKey(),
+          });
+        }
+      }
+    } catch {
+      // iOS PWA push is optional; ntfy is the lock-screen channel
+    }
   }
   await syncWebReminders({ test: true });
   startReminderWatchdog();
@@ -139,17 +162,26 @@ function notifyLocally(doses: { id: string; at: number; title: string; body: str
 }
 
 export async function syncWebReminders(options: { test?: boolean } = {}) {
-  if (!webPushSupported()) return;
+  if (typeof window === 'undefined') return;
   try {
-    await registerWebServiceWorker();
-    const subscription = await getExistingSubscription();
+    let subscription = null;
+    if (webPushSupported()) {
+      try {
+        await registerWebServiceWorker();
+        const sub = await getExistingSubscription();
+        subscription = sub ? sub.toJSON() : null;
+      } catch {
+        subscription = null;
+      }
+    }
     const doses = upcomingDoses();
     await fetch('/.netlify/functions/reminders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         deviceId: deviceId(),
-        subscription: subscription ? subscription.toJSON() : null,
+        ntfyTopic: getNtfyTopic(),
+        subscription,
         doses,
         test: Boolean(options.test),
       }),

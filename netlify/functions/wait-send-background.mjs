@@ -11,12 +11,12 @@ export default async (request) => {
     await new Promise((resolve) => setTimeout(resolve, waitMs));
   }
 
-  if (!body.subscription?.endpoint) {
+  if (!body.subscription?.endpoint && !body.ntfyTopic) {
     return Response.json({ ok: false }, { status: 400 });
   }
 
   try {
-    await sendPush(body.subscription, body.dose || {});
+    await sendPush(body.subscription, body.dose || {}, body.ntfyTopic);
     return Response.json({ ok: true });
   } catch (error) {
     return Response.json({ ok: false, error: String(error?.message || error) }, { status: 500 });

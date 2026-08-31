@@ -29,7 +29,7 @@ export default async (request) => {
 
   for (const blob of listed.blobs ?? []) {
     const record = await store.get(blob.key, { type: 'json' });
-    if (!record?.subscription?.endpoint) continue;
+    if (!record?.subscription?.endpoint && !record?.ntfyTopic) continue;
     devices += 1;
 
     const doses = Array.isArray(record.doses) ? record.doses : [];
@@ -48,7 +48,7 @@ export default async (request) => {
       }
 
       try {
-        await sendPush(record.subscription, dose);
+        await sendPush(record.subscription, dose, record.ntfyTopic);
         sent += 1;
         next.push({ ...dose, sent: true });
         changed = true;

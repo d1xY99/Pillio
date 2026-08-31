@@ -23,9 +23,41 @@ export function pushPayload(dose) {
   });
 }
 
-export async function sendPush(subscription, dose) {
-  await webpush.sendNotification(subscription, pushPayload(dose), {
-    TTL: 60 * 60,
-    urgency: 'high',
-  });
+export async function sendPush(subscription, dose, ntfyTopic) {
+  const title = dose.title || 'Pillio';
+  const body = dose.body || 'A dose is still unchecked.';
+  const jobs = [];
+
+  if (subscription?.endpoint) {
+    jobs.push(
+      webpush
+        .sendNotification(subscription, pushPayload(dose), {
+          TTL: 60 * 60,
+          urgency: 'high',
+        })
+        .catch(() => {}),
+    );
+  }
+
+  if (ntfyTopic && /^[a-zA-Z0-9_-]{8,64}$/.test(ntfyTopic)) {
+    jobs.push(
+      fetch(`https://ntfy.sh/${ntfyTopic}`, {
+        method: 'POST',
+        headers: {
+          Title: title,
+          Priority: 'high',
+          Tags: 'pill,alarm_clock',
+          Click: 'https://pillioo.netlify.app/',
+        },
+        body,
+      }).then((res) => {
+        if (!res.ok) throw new Error(`ntfy ${res.status}`);
+      }),
+    );
+  }
+
+  if (jobs.length === 0) {
+    throw new Error('No delivery channel');
+  }
+  await Promise.all(jobs);
 }
