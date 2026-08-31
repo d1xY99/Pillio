@@ -127,6 +127,13 @@ export default function RootLayout() {
               presentation: 'modal',
             }}
           />
+          <Stack.Screen
+            name="photo/compare"
+            options={{
+              headerShown: true,
+              title: 'Compare photos',
+            }}
+          />
         </Stack>
       </ThemeProvider>
     </GestureHandlerRootView>
