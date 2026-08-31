@@ -1,5 +1,6 @@
 import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 
+import { apiDelete, apiPatch, apiPost } from '@/api/client';
 import { getDb } from '@/db/client';
 import { createId } from '@/db/ids';
 import {
@@ -40,6 +41,7 @@ export function startWorkoutSession(): WorkoutSession {
     .insert(workoutSessions)
     .values({ id, startedAt: Date.now(), finishedAt: null, notes: null })
     .run();
+  void apiPost('/train/sessions', { id, startedAt: Date.now() }).catch(() => undefined);
   return getWorkoutSession(id)!;
 }
 
@@ -49,6 +51,7 @@ export function finishWorkoutSession(id: string, notes?: string | null): Workout
     .set({ finishedAt: Date.now(), notes: notes ?? null })
     .where(eq(workoutSessions.id, id))
     .run();
+  void apiPost(`/train/sessions/${id}/finish`, { notes: notes ?? null }).catch(() => undefined);
   return getWorkoutSession(id)!;
 }
 
@@ -128,6 +131,13 @@ export function addWorkoutSet(input: {
     })
     .run();
 
+  void apiPost(`/train/sessions/${input.sessionId}/sets`, {
+    id,
+    exerciseId: input.exerciseId,
+    reps: input.reps,
+    weightKg: input.weightKg,
+  }).catch(() => undefined);
+
   return getDb().select().from(workoutSets).where(eq(workoutSets.id, id)).get()!;
 }
 
@@ -136,11 +146,13 @@ export function updateWorkoutSet(
   patch: { reps?: number; weightKg?: number; completed?: boolean },
 ): WorkoutSet {
   getDb().update(workoutSets).set(patch).where(eq(workoutSets.id, id)).run();
+  void apiPatch(`/train/sets/${id}`, patch).catch(() => undefined);
   return getDb().select().from(workoutSets).where(eq(workoutSets.id, id)).get()!;
 }
 
 export function deleteWorkoutSet(id: string): void {
   getDb().delete(workoutSets).where(eq(workoutSets.id, id)).run();
+  void apiDelete(`/train/sets/${id}`).catch(() => undefined);
 }
 
 export function getExerciseHistory(

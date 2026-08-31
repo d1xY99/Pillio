@@ -34,8 +34,8 @@ export default function RootLayout() {
           await registerWebServiceWorker();
           startReminderWatchdog();
         }
-        const { isSupabaseConfigured } = await import('@/lib/supabase');
-        if (!isSupabaseConfigured()) {
+        const { isApiConfigured } = await import('@/api/client');
+        if (!isApiConfigured()) {
           ensureUpcomingDoses();
           void syncDoseReminders();
         }

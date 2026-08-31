@@ -56,7 +56,7 @@ export default function SettingsScreen() {
         {user ? (
           <>
             <ThemedText type="callout" themeColor="textSecondary">
-              Signed in as {user.user_metadata?.display_name ? `${user.user_metadata.display_name} · ` : ''}
+              Signed in as {user.displayName ? `${user.displayName} · ` : ''}
               {user.email}. Your stack is saved in the cloud. Sign out clears this phone; sign back
               in to load it.
             </ThemedText>

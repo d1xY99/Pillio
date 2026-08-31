@@ -1,20 +1,13 @@
-import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
-import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
-import {
-  beginCloudQuiet,
-  cancelScheduledPush,
-  clearLocalUserData,
-  endCloudQuiet,
-  pullFromCloud,
-  pushToCloud,
-} from '@/sync/cloud';
+import { apiGet, apiPost, isApiConfigured } from '@/api/client';
+import { readSession, writeSession, type ApiSession, type ApiUser } from '@/api/session';
+import { clearLocalUserData, pullFromCloud, resetCloudPullState } from '@/sync/cloud';
 
 type AuthContextValue = {
   configured: boolean;
-  session: Session | null;
-  user: User | null;
+  session: ApiSession | null;
+  user: ApiUser | null;
   loading: boolean;
   hydrating: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
@@ -25,40 +18,30 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const configured = isSupabaseConfigured();
-  const [session, setSession] = useState<Session | null>(null);
+  const configured = isApiConfigured();
+  const [session, setSession] = useState<ApiSession | null>(null);
+  const [user, setUser] = useState<ApiUser | null>(null);
   const [loading, setLoading] = useState(configured);
   const [hydrating, setHydrating] = useState(false);
   const hydrateLock = useRef<Promise<void> | null>(null);
   const hydratedUser = useRef<string | null>(null);
 
-  async function hydrateFromCloud() {
+  async function hydrateFromCloud(uid: string) {
     if (hydrateLock.current) return hydrateLock.current;
-    const uid = (await getSupabase()?.auth.getSession())?.data.session?.user.id ?? null;
-    if (!uid) {
-      setHydrating(false);
-      return;
-    }
     if (hydratedUser.current === uid) {
       setHydrating(false);
       return;
     }
     setHydrating(true);
     hydrateLock.current = (async () => {
-      beginCloudQuiet();
       try {
         await pullFromCloud();
-        const { ensureUpcomingDoses } = await import('@/domain/doses');
-        ensureUpcomingDoses();
-        const { notifyDbChanged } = await import('@/db/events');
-        notifyDbChanged();
         const { syncDoseReminders } = await import('@/notifications/sync');
         await syncDoseReminders();
         hydratedUser.current = uid;
       } catch {
-        // show whatever is already on this phone
+        // keep local cache
       } finally {
-        endCloudQuiet();
         hydrateLock.current = null;
         setHydrating(false);
       }
@@ -67,98 +50,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    const supabase = getSupabase();
-    if (!supabase) return;
-
-    void supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session ?? null);
-      if (data.session) setHydrating(true);
-      else setLoading(false);
-    });
-
-    let hadSession = false;
-
-    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
-      setSession(next);
-      if (next) hadSession = true;
-      if (event === 'INITIAL_SESSION') setLoading(false);
-      if (next && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
-        setHydrating(true);
+    const saved = readSession();
+    if (!saved?.access_token) {
+      setLoading(false);
+      return;
+    }
+    setSession(saved);
+    setHydrating(true);
+    void (async () => {
+      try {
+        const me = await apiGet<{ user: ApiUser }>('/auth/me');
+        setUser(me.user);
         setLoading(false);
-      }
-      if (event === 'SIGNED_OUT') {
-        hydratedUser.current = null;
+        await hydrateFromCloud(me.user.id);
+      } catch {
+        writeSession(null);
+        setSession(null);
+        setUser(null);
+        setLoading(false);
         setHydrating(false);
-        setLoading(false);
       }
-      // Defer so we never call auth APIs while this callback holds the lock.
-      setTimeout(() => {
-        if (event === 'SIGNED_OUT') {
-          if (hadSession) void clearLocalUserData();
-          return;
-        }
-        if (next && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
-          void hydrateFromCloud();
-        }
-      }, 0);
-    });
-
-    return () => {
-      sub.subscription.unsubscribe();
-    };
+    })();
   }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       configured,
       session,
-      user: session?.user ?? null,
+      user,
       loading,
       hydrating,
       signIn: async (email, password) => {
-        const supabase = getSupabase();
-        if (!supabase) return 'Cloud backup is not configured.';
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) return error.message;
-        await hydrateFromCloud();
-        return null;
+        try {
+          const data = await apiPost<{ session: ApiSession; user: ApiUser }>('/auth/sign-in', {
+            email,
+            password,
+          });
+          writeSession(data.session);
+          setSession(data.session);
+          setUser(data.user);
+          await hydrateFromCloud(data.user.id);
+          return null;
+        } catch (error) {
+          return error instanceof Error ? error.message : 'Could not sign in';
+        }
       },
       signUp: async (name, email, password) => {
-        const supabase = getSupabase();
-        if (!supabase) return 'Cloud backup is not configured.';
-        const displayName = name.trim();
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { display_name: displayName } },
-        });
-        if (error) return error.message;
-        if (data.user) {
-          await supabase.from('profiles').upsert({
-            id: data.user.id,
-            email: data.user.email,
-            display_name: displayName,
-          });
+        try {
+          const data = await apiPost<{
+            session?: ApiSession;
+            user?: ApiUser;
+            needsConfirmation?: boolean;
+          }>('/auth/sign-up', { name, email, password });
+          if (data.needsConfirmation || !data.session || !data.user) {
+            return 'Check your email to confirm the account, then sign in.';
+          }
+          writeSession(data.session);
+          setSession(data.session);
+          setUser(data.user);
+          await hydrateFromCloud(data.user.id);
+          return null;
+        } catch (error) {
+          return error instanceof Error ? error.message : 'Could not create account';
         }
-        if (!data.session) {
-          return 'Check your email to confirm the account, then sign in.';
-        }
-        await hydrateFromCloud();
-        return null;
       },
       signOut: async () => {
-        cancelScheduledPush();
         try {
-          await pushToCloud();
+          await apiPost('/auth/sign-out', {});
         } catch {
-          // still leave this phone even if the last backup fails
+          // still leave
         }
         hydratedUser.current = null;
-        await getSupabase()?.auth.signOut();
+        resetCloudPullState();
+        writeSession(null);
+        setSession(null);
+        setUser(null);
         await clearLocalUserData();
       },
     }),
-    [configured, session, loading, hydrating],
+    [configured, session, user, loading, hydrating],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,5 +1,6 @@
 import { and, desc, eq } from 'drizzle-orm';
 
+import { apiDelete, apiPost } from '@/api/client';
 import { getDb } from '@/db/client';
 import { createId } from '@/db/ids';
 import { doseLogs, schedules, supplements, type NewSupplement, type Supplement } from '@/db/schema';
@@ -74,6 +75,7 @@ export function updateSupplement(id: string, patch: Partial<SupplementInput>): S
 
 export function setSupplementArchived(id: string, archived: boolean): void {
   getDb().update(supplements).set({ archived }).where(eq(supplements.id, id)).run();
+  void apiPost(`/stack/${id}/archive`, { archived }).catch(() => undefined);
 }
 
 export function deleteSupplement(id: string): void {
@@ -81,6 +83,7 @@ export function deleteSupplement(id: string): void {
   db.delete(doseLogs).where(eq(doseLogs.supplementId, id)).run();
   db.delete(schedules).where(eq(schedules.supplementId, id)).run();
   db.delete(supplements).where(eq(supplements.id, id)).run();
+  void apiDelete(`/stack/${id}`).catch(() => undefined);
 }
 
 export function listRecentSupplements(): Supplement[] {

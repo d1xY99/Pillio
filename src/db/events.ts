@@ -11,5 +11,4 @@ export function subscribeDb(listener: Listener) {
 
 export function notifyDbChanged() {
   for (const listener of listeners) listener();
-  void import('@/sync/cloud').then((mod) => mod.schedulePush());
 }
