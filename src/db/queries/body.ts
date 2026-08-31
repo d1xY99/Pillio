@@ -1,5 +1,6 @@
 import { desc, eq } from 'drizzle-orm';
 
+import { apiDelete, apiPost } from '@/api/client';
 import { getDb } from '@/db/client';
 import { createId } from '@/db/ids';
 import { bodyWeights, progressPhotos, type BodyWeight, type ProgressPhoto } from '@/db/schema';
@@ -29,11 +30,18 @@ export function addBodyWeight(input: { weightKg: number; loggedAt?: number; note
       notes: input.notes ?? null,
     })
     .run();
+  void apiPost('/body/weights', {
+    id,
+    weightKg: input.weightKg,
+    loggedAt: input.loggedAt ?? Date.now(),
+    notes: input.notes ?? null,
+  }).catch(() => undefined);
   return getDb().select().from(bodyWeights).where(eq(bodyWeights.id, id)).get()!;
 }
 
 export function deleteBodyWeight(id: string): void {
   getDb().delete(bodyWeights).where(eq(bodyWeights.id, id)).run();
+  void apiDelete(`/body/weights/${id}`).catch(() => undefined);
 }
 
 export function listProgressPhotos(pose?: PhotoPose): ProgressPhoto[] {
@@ -66,9 +74,17 @@ export function addProgressPhoto(input: {
       notes: input.notes ?? null,
     })
     .run();
+  void apiPost('/body/photos', {
+    id,
+    localUri: input.localUri,
+    pose: input.pose,
+    takenAt: input.takenAt ?? Date.now(),
+    notes: input.notes ?? null,
+  }).catch(() => undefined);
   return getProgressPhoto(id)!;
 }
 
 export function deleteProgressPhoto(id: string): void {
   getDb().delete(progressPhotos).where(eq(progressPhotos.id, id)).run();
+  void apiDelete(`/body/photos/${id}`).catch(() => undefined);
 }

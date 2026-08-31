@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 
+import { apiPost } from '@/api/client';
 import { getDb } from '@/db/client';
 import { createId } from '@/db/ids';
 import { exercises, type Exercise } from '@/db/schema';
@@ -31,6 +32,9 @@ export function createExercise(input: { name: string; muscleGroup: MuscleGroup }
       isPreset: false,
     })
     .run();
+  void apiPost('/train/exercises', { id, name: input.name.trim(), muscleGroup: input.muscleGroup }).catch(
+    () => undefined,
+  );
   return getExercise(id)!;
 }
 

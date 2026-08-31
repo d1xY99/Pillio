@@ -16,7 +16,6 @@ import {
   startOfLocalDay,
   timestampForTimeOnDay,
 } from '@/domain/time';
-import { schedulePush } from '@/sync/cloud';
 
 export type TodayDose = DoseLog & {
   supplement: Supplement;
@@ -147,5 +146,4 @@ export function saveSchedules(supplementId: string, draft: ScheduleDraft) {
     })),
   );
   ensureUpcomingDoses();
-  schedulePush();
 }

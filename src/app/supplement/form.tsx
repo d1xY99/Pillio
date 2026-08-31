@@ -13,6 +13,7 @@ import {
   updateSupplement,
   type SupplementInput,
 } from '@/db/queries/supplements';
+import { apiPatch, apiPost } from '@/api/client';
 import { saveSchedules } from '@/domain/doses';
 import { syncDoseReminders } from '@/notifications/sync';
 import { DEFAULT_SCHEDULE, draftFromSchedules, type ScheduleDraft } from '@/domain/schedule';
@@ -46,6 +47,7 @@ export default function SupplementFormScreen() {
     if (existing) {
       updateSupplement(existing.id, input);
       saveSchedules(existing.id, schedule);
+      void apiPatch(`/stack/${existing.id}`, { ...input, schedule }).catch(() => undefined);
       void syncDoseReminders();
       router.back();
       return;
@@ -53,6 +55,7 @@ export default function SupplementFormScreen() {
 
     const created = createSupplement(input);
     saveSchedules(created.id, schedule);
+    void apiPost('/stack', { id: created.id, ...input, schedule }).catch(() => undefined);
     void syncDoseReminders();
     router.replace({ pathname: '/supplement/[id]', params: { id: created.id } });
   }
