@@ -1,5 +1,5 @@
 import { getStore } from '@netlify/blobs';
-import { sendPush } from './_push.mjs';
+import { sendPush, shouldAlert } from './_push.mjs';
 
 const CRON_SECRET = process.env.PILLIO_CRON_SECRET || 'pillio-dispatch-2026';
 
@@ -38,11 +38,7 @@ export default async (request) => {
 
     for (const dose of doses) {
       if (!dose?.id || !dose?.at) continue;
-      if (dose.sent) {
-        next.push(dose);
-        continue;
-      }
-      if (dose.at > now) {
+      if (!shouldAlert(dose, now)) {
         next.push(dose);
         continue;
       }
@@ -50,7 +46,7 @@ export default async (request) => {
       try {
         await sendPush(record.subscription, dose, record.ntfyTopic);
         sent += 1;
-        next.push({ ...dose, sent: true });
+        next.push({ ...dose, lastSent: now });
         changed = true;
       } catch (error) {
         const status = error?.statusCode;

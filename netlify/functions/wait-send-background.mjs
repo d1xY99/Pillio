@@ -1,3 +1,4 @@
+import { getStore } from '@netlify/blobs';
 import { sendPush } from './_push.mjs';
 
 export default async (request) => {
@@ -17,6 +18,18 @@ export default async (request) => {
 
   try {
     await sendPush(body.subscription, body.dose || {}, body.ntfyTopic);
+    if (body.deviceId && body.dose?.id) {
+      const store = getStore('pillio-reminders');
+      const record = (await store.get(body.deviceId, { type: 'json' })) || {};
+      const doses = Array.isArray(record.doses) ? record.doses : [];
+      await store.setJSON(body.deviceId, {
+        ...record,
+        doses: doses.map((dose) =>
+          dose.id === body.dose.id ? { ...dose, lastSent: Date.now() } : dose,
+        ),
+        updatedAt: Date.now(),
+      });
+    }
     return Response.json({ ok: true });
   } catch (error) {
     return Response.json({ ok: false, error: String(error?.message || error) }, { status: 500 });

@@ -8,7 +8,8 @@ import { VAPID_PUBLIC_KEY } from '@/notifications/vapid';
 
 const DEVICE_KEY = 'pillio.deviceId';
 const NTFY_KEY = 'pillio.ntfyTopic';
-const notified = new Set<string>();
+const lastLocalAlert = new Map<string, number>();
+const REPEAT_MS = 15 * 60 * 1000;
 let watchdogStarted = false;
 
 export type WebReminderStatus = 'unsupported' | 'needs-install' | 'denied' | 'granted' | 'off';
@@ -151,8 +152,9 @@ function notifyLocally(doses: { id: string; at: number; title: string; body: str
   const now = Date.now();
   for (const dose of doses) {
     if (dose.at > now) continue;
-    if (notified.has(dose.id)) continue;
-    notified.add(dose.id);
+    const previous = lastLocalAlert.get(dose.id) ?? 0;
+    if (now - previous < REPEAT_MS) continue;
+    lastLocalAlert.set(dose.id, now);
     try {
       new Notification(dose.title, { body: dose.body, tag: dose.id });
     } catch {
