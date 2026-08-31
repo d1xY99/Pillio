@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { useLiveQuery } from '@/db/live';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useEffect, useMemo } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
@@ -24,6 +24,7 @@ import { workoutSets } from '@/db/schema';
 import { formatDayLabel } from '@/domain/time';
 import { useDraftExercises } from '@/domain/workout-draft';
 import { useTheme } from '@/hooks/use-theme';
+import { showAlert } from '@/lib/confirm';
 
 export default function WorkoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -118,7 +119,7 @@ export default function WorkoutScreen() {
             label="Finish workout"
             onPress={() => {
               if (sets.length === 0) {
-                Alert.alert('No sets yet', 'Log at least one set before finishing.');
+                showAlert('No sets yet', 'Log at least one set before finishing.');
                 return;
               }
               finishWorkoutSession(session.id);

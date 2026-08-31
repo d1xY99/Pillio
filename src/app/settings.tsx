@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/auth-context';
 import { Button } from '@/components/button';
@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { showAlert } from '@/lib/confirm';
 import {
   getReminderPermission,
   requestReminderPermission,
@@ -190,7 +191,7 @@ export default function SettingsScreen() {
               onPress={() => {
                 void sendTestReminder().then((ok) => {
                   if (!ok) {
-                    Alert.alert(
+                    showAlert(
                       'Allow notifications first',
                       'Pillio cannot schedule alerts until notifications are allowed.',
                     );
