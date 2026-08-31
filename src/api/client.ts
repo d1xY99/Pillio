@@ -1,6 +1,12 @@
 import { accessToken, refreshToken, writeSession, type ApiSession } from './session';
 
 export function apiBase() {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host !== 'localhost' && host !== '127.0.0.1') {
+      return '';
+    }
+  }
   const explicit = process.env.EXPO_PUBLIC_API_URL;
   if (explicit) return explicit.replace(/\/$/, '');
   return '';
@@ -54,8 +60,8 @@ export async function api<T = any>(
     res = await run();
   } catch {
     const hint = apiBase()
-      ? `Cannot reach ${apiBase()}. In another terminal run: npm run api`
-      : 'API URL is missing. Set EXPO_PUBLIC_API_URL=http://localhost:8787 and run npm run api';
+      ? `Cannot reach ${apiBase()}. Start the API: npm run api`
+      : 'API is not reachable. On this phone use https://pillioo.netlify.app. Locally run npm run api.';
     throw new Error(hint);
   }
   if (res.status === 401 && init.auth !== false) {
