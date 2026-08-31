@@ -15,8 +15,28 @@ import {
 import { getSupabase } from '@/lib/supabase';
 
 let timer: ReturnType<typeof setTimeout> | null = null;
-let syncing = false;
+let syncDepth = 0;
 let clearing: Promise<void> | null = null;
+
+const CLOUD_TABLES = [
+  'supplements',
+  'schedules',
+  'dose_logs',
+  'exercises',
+  'workout_sessions',
+  'workout_sets',
+  'body_weights',
+  'progress_photos',
+] as const;
+
+export function beginCloudQuiet() {
+  syncDepth += 1;
+  cancelScheduledPush();
+}
+
+export function endCloudQuiet() {
+  syncDepth = Math.max(0, syncDepth - 1);
+}
 
 export function cancelScheduledPush() {
   if (timer) {
@@ -26,12 +46,12 @@ export function cancelScheduledPush() {
 }
 
 export function schedulePush() {
-  if (syncing) return;
+  if (syncDepth > 0) return;
   if (timer) clearTimeout(timer);
   timer = setTimeout(() => {
     timer = null;
     void pushToCloud();
-  }, 300);
+  }, 800);
 }
 
 function wipeLocalUserRows() {
@@ -49,13 +69,12 @@ function wipeLocalUserRows() {
 export async function clearLocalUserData() {
   if (clearing) return clearing;
   clearing = (async () => {
-    cancelScheduledPush();
-    syncing = true;
+    beginCloudQuiet();
     try {
       wipeLocalUserRows();
       await flushLocalPersist();
     } finally {
-      syncing = false;
+      endCloudQuiet();
     }
     notifyDbChanged();
   })();
@@ -79,28 +98,30 @@ export async function pullFromCloud() {
   const userId = await sessionUserId();
   if (!userId) return;
 
-  const db = getDb();
-  const remoteSupplements = await supabase.from('supplements').select('*').eq('user_id', userId);
-  if (remoteSupplements.error) return;
-  if ((remoteSupplements.data?.length ?? 0) === 0) {
-    await pushToCloud();
+  const results = await Promise.all(
+    CLOUD_TABLES.map((table) => supabase.from(table).select('*').eq('user_id', userId)),
+  );
+  const failed = results.find((result) => result.error);
+  if (failed?.error) {
+    console.warn('[pillio] cloud pull:', failed.error.message);
     return;
   }
 
-  syncing = true;
-  try {
-    wipeLocalUserRows();
+  const mapRows: Record<string, unknown[] | null> = {};
+  CLOUD_TABLES.forEach((table, index) => {
+    mapRows[table] = results[index].data;
+  });
 
-    const mapRows: Record<string, unknown[] | null> = {
-      supplements: (await supabase.from('supplements').select('*').eq('user_id', userId)).data,
-      schedules: (await supabase.from('schedules').select('*').eq('user_id', userId)).data,
-      dose_logs: (await supabase.from('dose_logs').select('*').eq('user_id', userId)).data,
-      exercises: (await supabase.from('exercises').select('*').eq('user_id', userId)).data,
-      workout_sessions: (await supabase.from('workout_sessions').select('*').eq('user_id', userId)).data,
-      workout_sets: (await supabase.from('workout_sets').select('*').eq('user_id', userId)).data,
-      body_weights: (await supabase.from('body_weights').select('*').eq('user_id', userId)).data,
-      progress_photos: (await supabase.from('progress_photos').select('*').eq('user_id', userId)).data,
-    };
+  if ((mapRows.supplements?.length ?? 0) === 0) {
+    const localCount = getDb().select().from(supplements).all().length;
+    if (localCount) await pushToCloud({ reconcile: false });
+    return;
+  }
+
+  beginCloudQuiet();
+  try {
+    const db = getDb();
+    wipeLocalUserRows();
 
     insertMapped(mapRows.supplements, (row) =>
       db.insert(supplements).values(fromSupplement(row)).run(),
@@ -119,20 +140,21 @@ export async function pullFromCloud() {
     insertMapped(mapRows.progress_photos, (row) =>
       db.insert(progressPhotos).values(fromPhoto(row)).run(),
     );
-  } finally {
-    syncing = false;
-  }
 
-  await flushLocalPersist();
-  notifyDbChanged();
+    await flushLocalPersist();
+    notifyDbChanged();
+  } finally {
+    endCloudQuiet();
+  }
 }
 
-export async function pushToCloud() {
+export async function pushToCloud(options: { reconcile?: boolean } = {}) {
   const supabase = getSupabase();
   if (!supabase) return;
   const uid = await sessionUserId();
   if (!uid) return;
   const db = getDb();
+  const reconcile = options.reconcile ?? true;
 
   const allSupplements = db.select().from(supplements).all();
   const allSchedules = db.select().from(schedules).all();
@@ -143,25 +165,31 @@ export async function pushToCloud() {
   const allWeights = db.select().from(bodyWeights).all();
   const allPhotos = db.select().from(progressPhotos).all();
 
-  await upsert('supplements', allSupplements.map((row) => toSupplement(row, uid)));
-  await upsert('schedules', allSchedules.map((row) => toSchedule(row, uid)));
-  await upsert('dose_logs', allDoses.map((row) => toDose(row, uid)));
-  await upsert('exercises', allExercises.map((row) => toExercise(row, uid)));
-  await upsert('workout_sessions', allSessions.map((row) => toSession(row, uid)));
-  await upsert('workout_sets', allSets.map((row) => toSet(row, uid)));
-  await upsert('body_weights', allWeights.map((row) => toWeight(row, uid)));
-  await upsert('progress_photos', allPhotos.map((row) => toPhoto(row, uid)));
+  await Promise.all([
+    upsert('supplements', allSupplements.map((row) => toSupplement(row, uid))),
+    upsert('exercises', allExercises.map((row) => toExercise(row, uid))),
+    upsert('workout_sessions', allSessions.map((row) => toSession(row, uid))),
+    upsert('body_weights', allWeights.map((row) => toWeight(row, uid))),
+    upsert('progress_photos', allPhotos.map((row) => toPhoto(row, uid))),
+  ]);
+  await Promise.all([
+    upsert('schedules', allSchedules.map((row) => toSchedule(row, uid))),
+    upsert('dose_logs', allDoses.map((row) => toDose(row, uid))),
+    upsert('workout_sets', allSets.map((row) => toSet(row, uid))),
+  ]);
 
-  // Local is source of truth: drop remote rows that are gone on this phone.
-  // Children first so FK/cascade order stays valid.
-  await deleteMissing('dose_logs', uid, ids(allDoses));
-  await deleteMissing('workout_sets', uid, ids(allSets));
-  await deleteMissing('schedules', uid, ids(allSchedules));
-  await deleteMissing('workout_sessions', uid, ids(allSessions));
-  await deleteMissing('body_weights', uid, ids(allWeights));
-  await deleteMissing('progress_photos', uid, ids(allPhotos));
-  await deleteMissing('exercises', uid, ids(allExercises));
-  await deleteMissing('supplements', uid, ids(allSupplements));
+  if (!reconcile) return;
+
+  await Promise.all([
+    deleteMissing('dose_logs', uid, ids(allDoses)),
+    deleteMissing('workout_sets', uid, ids(allSets)),
+    deleteMissing('schedules', uid, ids(allSchedules)),
+    deleteMissing('workout_sessions', uid, ids(allSessions)),
+    deleteMissing('body_weights', uid, ids(allWeights)),
+    deleteMissing('progress_photos', uid, ids(allPhotos)),
+    deleteMissing('exercises', uid, ids(allExercises)),
+    deleteMissing('supplements', uid, ids(allSupplements)),
+  ]);
 }
 
 function ids(rows: { id: string }[]) {

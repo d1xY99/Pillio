@@ -34,8 +34,11 @@ export default function RootLayout() {
           await registerWebServiceWorker();
           startReminderWatchdog();
         }
-        ensureUpcomingDoses();
-        void syncDoseReminders();
+        const { isSupabaseConfigured } = await import('@/lib/supabase');
+        if (!isSupabaseConfigured()) {
+          ensureUpcomingDoses();
+          void syncDoseReminders();
+        }
       } catch (cause) {
         if (!cancelled) {
           setError(cause instanceof Error ? cause.message : 'Could not open local database');

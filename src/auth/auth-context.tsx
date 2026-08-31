@@ -2,7 +2,14 @@ import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
-import { cancelScheduledPush, clearLocalUserData, pullFromCloud, pushToCloud } from '@/sync/cloud';
+import {
+  beginCloudQuiet,
+  cancelScheduledPush,
+  clearLocalUserData,
+  endCloudQuiet,
+  pullFromCloud,
+  pushToCloud,
+} from '@/sync/cloud';
 
 type AuthContextValue = {
   configured: boolean;
@@ -23,11 +30,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(configured);
   const [hydrating, setHydrating] = useState(false);
   const hydrateLock = useRef<Promise<void> | null>(null);
+  const hydratedUser = useRef<string | null>(null);
 
   async function hydrateFromCloud() {
     if (hydrateLock.current) return hydrateLock.current;
+    const uid = (await getSupabase()?.auth.getSession())?.data.session?.user.id ?? null;
+    if (!uid) {
+      setHydrating(false);
+      return;
+    }
+    if (hydratedUser.current === uid) {
+      setHydrating(false);
+      return;
+    }
     setHydrating(true);
     hydrateLock.current = (async () => {
+      beginCloudQuiet();
       try {
         await pullFromCloud();
         const { ensureUpcomingDoses } = await import('@/domain/doses');
@@ -36,10 +54,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         notifyDbChanged();
         const { syncDoseReminders } = await import('@/notifications/sync');
         await syncDoseReminders();
-        await pushToCloud();
+        hydratedUser.current = uid;
       } catch {
         // show whatever is already on this phone
       } finally {
+        endCloudQuiet();
         hydrateLock.current = null;
         setHydrating(false);
       }
@@ -53,13 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void supabase.auth.getSession().then(({ data }) => {
       setSession(data.session ?? null);
-      if (data.session) {
-        setHydrating(true);
-        setLoading(false);
-        void hydrateFromCloud();
-      } else {
-        setLoading(false);
-      }
+      if (data.session) setHydrating(true);
+      else setLoading(false);
     });
 
     let hadSession = false;
@@ -73,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
       if (event === 'SIGNED_OUT') {
+        hydratedUser.current = null;
         setHydrating(false);
         setLoading(false);
       }
@@ -138,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch {
           // still leave this phone even if the last backup fails
         }
+        hydratedUser.current = null;
         await getSupabase()?.auth.signOut();
         await clearLocalUserData();
       },
