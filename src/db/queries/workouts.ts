@@ -142,3 +142,34 @@ export function updateWorkoutSet(
 export function deleteWorkoutSet(id: string): void {
   getDb().delete(workoutSets).where(eq(workoutSets.id, id)).run();
 }
+
+export function getExerciseHistory(
+  exerciseId: string,
+): { startedAt: number; weightKg: number }[] {
+  const rows = getDb()
+    .select({
+      sessionId: workoutSets.sessionId,
+      startedAt: workoutSessions.startedAt,
+      weightKg: workoutSets.weightKg,
+    })
+    .from(workoutSets)
+    .innerJoin(workoutSessions, eq(workoutSets.sessionId, workoutSessions.id))
+    .where(
+      and(
+        eq(workoutSets.exerciseId, exerciseId),
+        eq(workoutSets.completed, true),
+        isNotNull(workoutSessions.finishedAt),
+      ),
+    )
+    .orderBy(workoutSessions.startedAt)
+    .all();
+
+  const bySession = new Map<string, { startedAt: number; weightKg: number }>();
+  for (const row of rows) {
+    const current = bySession.get(row.sessionId);
+    if (!current || row.weightKg > current.weightKg) {
+      bySession.set(row.sessionId, { startedAt: row.startedAt, weightKg: row.weightKg });
+    }
+  }
+  return [...bySession.values()].sort((a, b) => a.startedAt - b.startedAt);
+}

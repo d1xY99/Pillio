@@ -105,6 +105,28 @@ export default function RootLayout() {
               presentation: 'modal',
             }}
           />
+          <Stack.Screen
+            name="workout/[id]"
+            options={{
+              headerShown: true,
+              title: 'Workout',
+            }}
+          />
+          <Stack.Screen
+            name="exercise/[id]"
+            options={{
+              headerShown: true,
+              title: 'Exercise',
+            }}
+          />
+          <Stack.Screen
+            name="exercise/picker"
+            options={{
+              headerShown: true,
+              title: 'Add exercise',
+              presentation: 'modal',
+            }}
+          />
         </Stack>
       </ThemeProvider>
     </GestureHandlerRootView>
