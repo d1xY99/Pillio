@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import { ArtThumb } from '@/components/art-thumb';
+import { CheckButton } from '@/components/check-button';
 import { PressScale } from '@/components/press-scale';
 import { ThemedText } from '@/components/themed-text';
 import { TypeBadge } from '@/components/type-badge';
@@ -13,9 +14,13 @@ import { useTheme } from '@/hooks/use-theme';
 export function SupplementRow({
   item,
   onPress,
+  status,
+  check,
 }: {
   item: Supplement;
   onPress: () => void;
+  status?: string;
+  check?: { taken: boolean; overdue?: boolean; onToggle: () => void };
 }) {
   const theme = useTheme();
 
@@ -42,8 +47,14 @@ export function SupplementRow({
           </View>
           <ThemedText type="callout" themeColor="textSecondary">
             {formatDose(item.defaultAmount, item.defaultUnit)} · {FORM_LABELS[item.form as SupplementForm]}
+            {status ? ` · ${status}` : ''}
           </ThemedText>
         </View>
+        {check ? (
+          <View style={styles.check}>
+            <CheckButton checked={check.taken} overdue={check.overdue} onPress={check.onToggle} />
+          </View>
+        ) : null}
       </View>
     </PressScale>
   );
@@ -77,5 +88,9 @@ const styles = StyleSheet.create({
   },
   name: {
     flex: 1,
+  },
+  check: {
+    paddingRight: Spacing.three,
+    justifyContent: 'center',
   },
 });

@@ -4,79 +4,129 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { ArtThumb } from '@/components/art-thumb';
 import { EmptyState } from '@/components/empty-state';
 import { FadeIn } from '@/components/fade-in';
-import { UiIcon } from '@/components/ui-icon';
 import { Screen } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
 import { SupplementRow } from '@/components/supplement-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { ArtThumb } from '@/components/art-thumb';
 import { TypeArtCard } from '@/components/type-art-card';
+import { UiIcon } from '@/components/ui-icon';
 import { TYPE_LABELS } from '@/constants/catalog';
 import { Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
-import { supplements } from '@/db/schema';
-import type { SupplementType } from '@/db/types';
+import { doseLogs, supplements } from '@/db/schema';
+import type { DoseUnit, SupplementType } from '@/db/types';
+import { isWeeklySupplement, listTodayDoses } from '@/domain/doses';
+import { takeDose, untakeDose } from '@/domain/logging';
+import { describeSchedule, draftFromSchedules } from '@/domain/schedule';
+import { listSchedulesForSupplement } from '@/db/queries/schedules';
 import { useTheme } from '@/hooks/use-theme';
+
+type StackFilter = 'daily' | 'weekly' | 'archived';
 
 export default function StackScreen() {
   const router = useRouter();
   const theme = useTheme();
   const db = getDb();
-  const [showArchived, setShowArchived] = useState(false);
+  const [filter, setFilter] = useState<StackFilter>('daily');
   const { data = [] } = useLiveQuery(
     db
       .select()
       .from(supplements)
-      .where(eq(supplements.archived, showArchived))
+      .where(eq(supplements.archived, filter === 'archived'))
       .orderBy(supplements.name),
-    [showArchived],
+    [filter],
   );
+  const { updatedAt: doseTick } = useLiveQuery(db.select({ id: doseLogs.id }).from(doseLogs));
+
+  const weeklyDue = useMemo(
+    () => listTodayDoses(Date.now(), { weekly: true }),
+    [doseTick, data],
+  );
+  const dueById = useMemo(
+    () => new Map(weeklyDue.map((dose) => [dose.supplementId, dose])),
+    [weeklyDue],
+  );
+
+  const visible = useMemo(() => {
+    if (filter === 'archived') return data;
+    return data.filter((item) => {
+      const weekly = isWeeklySupplement(item.id);
+      return filter === 'weekly' ? weekly : !weekly;
+    });
+  }, [data, filter]);
 
   const grouped = useMemo(() => {
     const order: SupplementType[] = ['vitamin', 'peptide', 'supplement'];
     return order
       .map((type) => ({
         type,
-        items: data.filter((item) => item.type === type),
+        items: visible.filter((item) => item.type === type),
       }))
       .filter((group) => group.items.length > 0);
-  }, [data]);
+  }, [visible]);
+
+  const subtitle =
+    filter === 'archived'
+      ? 'Archived items'
+      : filter === 'weekly'
+        ? 'Once a week — stays off Today'
+        : 'Daily vitamins, peptides, and supplements';
 
   return (
     <ThemedView style={styles.flex}>
       <Screen>
         <ScreenHeader
-          title="Stack"
-          subtitle={showArchived ? 'Archived items' : 'Vitamins, peptides, and supplements'}
+          title={filter === 'weekly' ? 'Weekly' : 'Stack'}
+          subtitle={subtitle}
           right={
-            <View style={styles.headerActions}>
+            filter !== 'archived' ? (
               <Pressable
-                onPress={() => setShowArchived((value) => !value)}
-                style={[styles.toggle, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-                <ThemedText type="captionBold" themeColor={showArchived ? 'accent' : 'textSecondary'}>
-                  {showArchived ? 'Active' : 'Archived'}
+                onPress={() =>
+                  router.push({
+                    pathname: '/supplement/form',
+                    params: filter === 'weekly' ? { weekly: '1' } : {},
+                  })
+                }
+                style={[styles.add, { backgroundColor: theme.accent }]}>
+                <UiIcon name="plus" color="#06110D" size={14} />
+                <ThemedText type="captionBold" style={styles.addLabel}>
+                  Add
                 </ThemedText>
               </Pressable>
-              {!showArchived ? (
-                <Pressable
-                  onPress={() => router.push('/supplement/form')}
-                  style={[styles.add, { backgroundColor: theme.accent }]}>
-                  <UiIcon name="plus" color="#06110D" size={14} />
-                  <ThemedText type="captionBold" style={styles.addLabel}>
-                    Add
-                  </ThemedText>
-                </Pressable>
-              ) : null}
-            </View>
+            ) : null
           }
         />
 
-        {data.length === 0 ? (
+        <View style={styles.filters}>
+          {(['daily', 'weekly', 'archived'] as const).map((key) => {
+            const active = filter === key;
+            const label = key === 'daily' ? 'Daily' : key === 'weekly' ? 'Weekly' : 'Archived';
+            return (
+              <Pressable
+                key={key}
+                onPress={() => setFilter(key)}
+                style={[
+                  styles.filter,
+                  {
+                    backgroundColor: active ? theme.accentMuted : theme.surface,
+                    borderColor: active ? theme.accent : theme.border,
+                  },
+                ]}>
+                <ThemedText type="captionBold" style={{ color: active ? theme.accent : theme.textSecondary }}>
+                  {label}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {visible.length === 0 ? (
           <FadeIn>
-            {!showArchived ? (
+            {filter === 'daily' ? (
               <View style={styles.typeRow}>
                 <TypeArtCard type="vitamin" delay={40} />
                 <TypeArtCard type="peptide" delay={120} />
@@ -85,11 +135,19 @@ export default function StackScreen() {
             ) : null}
             <EmptyState
               icon="pills.fill"
-              title={showArchived ? 'Nothing archived' : 'Build your stack'}
+              title={
+                filter === 'archived'
+                  ? 'Nothing archived'
+                  : filter === 'weekly'
+                    ? 'No weekly items'
+                    : 'Build your stack'
+              }
               body={
-                showArchived
+                filter === 'archived'
                   ? 'Archived items stay out of Today until you restore them.'
-                  : 'Vitamins, peptides, and gym supplements — each with dose, schedule, and history.'
+                  : filter === 'weekly'
+                    ? 'Weekly supplements live here and never crowd Today. Add one and pick the day.'
+                    : 'Daily items show on Today. Move once-a-week stuff to Weekly.'
               }
             />
           </FadeIn>
@@ -104,22 +162,54 @@ export default function StackScreen() {
                       {TYPE_LABELS[group.type].toUpperCase()}
                     </ThemedText>
                   </View>
-                  {group.items.map((item) => (
-                    <SupplementRow
-                      key={item.id}
-                      item={item}
-                      onPress={() =>
-                        router.push({ pathname: '/supplement/[id]', params: { id: item.id } })
-                      }
-                    />
-                  ))}
+                  {group.items.map((item) => {
+                    const due = filter === 'weekly' ? dueById.get(item.id) : undefined;
+                    const schedules = listSchedulesForSupplement(item.id);
+                    const weeklyLabel =
+                      filter === 'weekly'
+                        ? due
+                          ? due.takenAt
+                            ? 'Taken this week'
+                            : due.overdue
+                              ? 'Due today'
+                              : 'Due today'
+                          : describeSchedule(draftFromSchedules(schedules))
+                        : undefined;
+                    return (
+                      <SupplementRow
+                        key={item.id}
+                        item={item}
+                        status={weeklyLabel}
+                        check={
+                          due
+                            ? {
+                                taken: Boolean(due.takenAt),
+                                overdue: due.overdue,
+                                onToggle: () => {
+                                  if (due.takenAt) {
+                                    void untakeDose(due.id);
+                                  } else {
+                                    void takeDose(due.id, {
+                                      amount: item.defaultAmount,
+                                      unit: item.defaultUnit as DoseUnit,
+                                    });
+                                  }
+                                },
+                              }
+                            : undefined
+                        }
+                        onPress={() =>
+                          router.push({ pathname: '/supplement/[id]', params: { id: item.id } })
+                        }
+                      />
+                    );
+                  })}
                 </View>
               </FadeIn>
             ))}
           </View>
         )}
       </Screen>
-
     </ThemedView>
   );
 }
@@ -128,16 +218,16 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  headerActions: {
+  filters: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 8,
+    marginBottom: Spacing.four,
   },
-  toggle: {
-    borderWidth: StyleSheet.hairlineWidth,
+  filter: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: Radius.full,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    borderWidth: 1,
   },
   add: {
     flexDirection: 'row',

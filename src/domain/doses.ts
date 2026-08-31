@@ -1,9 +1,9 @@
 import { listDosesBetween, upsertScheduledDose } from '@/db/queries/doses';
-import { listActiveSchedules, replaceSchedulesForSupplement } from '@/db/queries/schedules';
+import { listActiveSchedules, listSchedulesForSupplement, replaceSchedulesForSupplement } from '@/db/queries/schedules';
 import { listAllSupplements } from '@/db/queries/supplements';
 import type { DoseLog, Schedule, Supplement } from '@/db/schema';
 import type { DoseUnit } from '@/db/types';
-import { isScheduleDueOnDay, type ScheduleDraft } from '@/domain/schedule';
+import { isScheduleDueOnDay, isWeeklySchedule, type ScheduleDraft } from '@/domain/schedule';
 import {
   eachLocalDay,
   endOfLocalDay,
@@ -43,7 +43,11 @@ export function ensureUpcomingDoses(daysAhead = 7) {
   ensureDosesForRange(start, end);
 }
 
-export function listTodayDoses(now = Date.now()): TodayDose[] {
+export function isWeeklySupplement(supplementId: string): boolean {
+  return listSchedulesForSupplement(supplementId).some(isWeeklySchedule);
+}
+
+export function listTodayDoses(now = Date.now(), options: { weekly?: boolean } = {}): TodayDose[] {
   const start = startOfLocalDay(now);
   const end = endOfLocalDay(now);
   const activeIds = new Set(listActiveSchedules().map((row) => row.id));
@@ -65,6 +69,10 @@ export function listTodayDoses(now = Date.now()): TodayDose[] {
           overdue: !dose.takenAt && !dose.skipped && dose.scheduledFor < now,
         },
       ];
+    })
+    .filter((dose) => {
+      const weekly = isWeeklySupplement(dose.supplementId);
+      return options.weekly ? weekly : !weekly;
     })
     .sort((a, b) => a.scheduledFor - b.scheduledFor || a.supplement.name.localeCompare(b.supplement.name));
 }
@@ -97,8 +105,10 @@ export function saveSchedules(supplementId: string, draft: ScheduleDraft) {
     draft.times.map((timeMinutes) => ({
       timeMinutes,
       frequency: draft.frequency,
-      intervalDays: draft.frequency === 'every_n_days' ? draft.intervalDays : null,
-      weekdaysMask: draft.frequency === 'weekdays' ? draft.weekdaysMask : null,
+      intervalDays:
+        draft.frequency === 'every_n_days' ? draft.intervalDays : draft.frequency === 'weekly' ? 7 : null,
+      weekdaysMask:
+        draft.frequency === 'weekdays' || draft.frequency === 'weekly' ? draft.weekdaysMask : null,
       cycleOnDays: draft.frequency === 'cycle' ? draft.cycleOnDays : null,
       cycleOffDays: draft.frequency === 'cycle' ? draft.cycleOffDays : null,
       reminderEnabled: draft.reminderEnabled,

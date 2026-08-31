@@ -12,6 +12,7 @@ import {
   ALL_WEEKDAYS_MASK,
   hasWeekday,
   toggleWeekday,
+  weekdayBit,
   WEEKDAY_LABELS,
   type ScheduleDraft,
 } from '@/domain/schedule';
@@ -34,6 +35,7 @@ function fromInputTime(value: string): number {
 
 const FREQUENCY_LABELS: Record<ScheduleFrequency, string> = {
   daily: 'Daily',
+  weekly: 'Weekly',
   every_n_days: 'Every N days',
   weekdays: 'Weekdays',
   cycle: 'On / off cycle',
@@ -133,7 +135,13 @@ export function ScheduleFields({
         options={SCHEDULE_FREQUENCIES}
         value={value.frequency}
         labels={FREQUENCY_LABELS}
-        onChange={(frequency) => update({ frequency })}
+        onChange={(frequency) => {
+          if (frequency === 'weekly' && (value.weekdaysMask === ALL_WEEKDAYS_MASK || !value.weekdaysMask)) {
+            update({ frequency, weekdaysMask: weekdayBit(1) });
+            return;
+          }
+          update({ frequency });
+        }}
       />
 
       {value.frequency === 'every_n_days' ? (
@@ -145,27 +153,42 @@ export function ScheduleFields({
         />
       ) : null}
 
-      {value.frequency === 'weekdays' ? (
-        <View style={styles.weekdays}>
-          {WEEKDAY_LABELS.map((label, jsDay) => {
-            const selected = hasWeekday(value.weekdaysMask || ALL_WEEKDAYS_MASK, jsDay);
-            return (
-              <Pressable
-                key={`${label}-${jsDay}`}
-                onPress={() => update({ weekdaysMask: toggleWeekday(value.weekdaysMask, jsDay) })}
-                style={[
-                  styles.day,
-                  {
-                    backgroundColor: selected ? theme.accentMuted : theme.surface,
-                    borderColor: selected ? theme.accent : theme.border,
-                  },
-                ]}>
-                <ThemedText type="captionBold" style={{ color: selected ? theme.accent : theme.textSecondary }}>
-                  {label}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
+      {value.frequency === 'weekly' || value.frequency === 'weekdays' ? (
+        <View>
+          <ThemedText type="captionBold" themeColor="textSecondary">
+            {value.frequency === 'weekly' ? 'Day of week' : 'Days'}
+          </ThemedText>
+          <View style={styles.weekdays}>
+            {WEEKDAY_LABELS.map((label, jsDay) => {
+              const selected =
+                value.frequency === 'weekly'
+                  ? hasWeekday(value.weekdaysMask || weekdayBit(1), jsDay)
+                  : hasWeekday(value.weekdaysMask || ALL_WEEKDAYS_MASK, jsDay);
+              return (
+                <Pressable
+                  key={`${label}-${jsDay}`}
+                  onPress={() =>
+                    update({
+                      weekdaysMask:
+                        value.frequency === 'weekly'
+                          ? weekdayBit(jsDay)
+                          : toggleWeekday(value.weekdaysMask, jsDay),
+                    })
+                  }
+                  style={[
+                    styles.day,
+                    {
+                      backgroundColor: selected ? theme.accentMuted : theme.surface,
+                      borderColor: selected ? theme.accent : theme.border,
+                    },
+                  ]}>
+                  <ThemedText type="captionBold" style={{ color: selected ? theme.accent : theme.textSecondary }}>
+                    {label}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
       ) : null}
 

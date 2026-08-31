@@ -75,6 +75,11 @@ export function isScheduleDueOnDay(schedule: Schedule, dayStart: number): boolea
       const interval = Math.max(1, schedule.intervalDays ?? 1);
       return elapsed % interval === 0;
     }
+    case 'weekly': {
+      const mask = schedule.weekdaysMask;
+      if (mask) return hasWeekday(mask, new Date(dayStart).getDay());
+      return elapsed % 7 === 0;
+    }
     case 'weekdays':
       return hasWeekday(schedule.weekdaysMask ?? 0, new Date(dayStart).getDay());
     case 'cycle': {
@@ -86,6 +91,17 @@ export function isScheduleDueOnDay(schedule: Schedule, dayStart: number): boolea
     default:
       return false;
   }
+}
+
+export function isWeeklySchedule(schedule: Schedule): boolean {
+  if (schedule.frequency === 'weekly') return true;
+  if (schedule.frequency === 'every_n_days' && (schedule.intervalDays ?? 0) === 7) return true;
+  if (schedule.frequency === 'weekdays') {
+    const mask = schedule.weekdaysMask ?? 0;
+    const count = mask.toString(2).split('').filter((bit) => bit === '1').length;
+    return count === 1;
+  }
+  return false;
 }
 
 export function describeSchedule(draft: ScheduleDraft): string {
@@ -102,6 +118,10 @@ export function describeSchedule(draft: ScheduleDraft): string {
   switch (draft.frequency) {
     case 'daily':
       return `Daily at ${times}`;
+    case 'weekly': {
+      const day = WEEKDAY_NAMES.find((_, index) => hasWeekday(draft.weekdaysMask, index)) ?? 'a set day';
+      return `Weekly on ${day} at ${times}`;
+    }
     case 'every_n_days':
       return `Every ${draft.intervalDays} days at ${times}`;
     case 'weekdays': {

@@ -19,14 +19,21 @@ import { DEFAULT_SCHEDULE, draftFromSchedules, type ScheduleDraft } from '@/doma
 import { startOfLocalDay } from '@/domain/time';
 
 export default function SupplementFormScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, weekly } = useLocalSearchParams<{ id?: string; weekly?: string }>();
   const router = useRouter();
   const navigation = useNavigation();
   const existing = id ? getSupplement(id) : undefined;
   const [schedule, setSchedule] = useState<ScheduleDraft>(() =>
     existing
       ? draftFromSchedules(listSchedulesForSupplement(existing.id))
-      : { ...DEFAULT_SCHEDULE, startDate: startOfLocalDay() },
+      : weekly === '1'
+        ? {
+            ...DEFAULT_SCHEDULE,
+            frequency: 'weekly',
+            weekdaysMask: 1 << 1,
+            startDate: startOfLocalDay(),
+          }
+        : { ...DEFAULT_SCHEDULE, startDate: startOfLocalDay() },
   );
 
   useEffect(() => {
