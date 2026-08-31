@@ -1,6 +1,7 @@
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
+import { PressScale } from '@/components/press-scale';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -14,25 +15,29 @@ export function IconButton({ name, onPress, accessibilityLabel }: IconButtonProp
   const theme = useTheme();
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
+    <PressScale
       onPress={onPress}
-      style={({ pressed }) => [
+      style={[
         styles.button,
-        { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.7 : 1 },
+        { backgroundColor: theme.surface, borderColor: theme.border },
       ]}>
-      <SymbolView name={name} tintColor={theme.text} size={20} weight="medium" />
-    </Pressable>
+      <SymbolView
+        name={name}
+        tintColor={theme.text}
+        size={20}
+        weight="medium"
+        accessibilityLabel={accessibilityLabel}
+      />
+    </PressScale>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: Radius.full,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.one,

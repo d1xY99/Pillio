@@ -14,12 +14,12 @@ export function ScreenHeader({ title, subtitle, right }: ScreenHeaderProps) {
   return (
     <View style={styles.header}>
       <View style={styles.titles}>
-        <ThemedText type="display">{title}</ThemedText>
         {subtitle ? (
-          <ThemedText type="callout" themeColor="textSecondary">
-            {subtitle}
+          <ThemedText type="captionBold" themeColor="accent" style={styles.kicker}>
+            {subtitle.toUpperCase()}
           </ThemedText>
         ) : null}
+        <ThemedText type="display">{title}</ThemedText>
       </View>
       {right ? <View style={styles.right}>{right}</View> : null}
     </View>
@@ -36,7 +36,11 @@ const styles = StyleSheet.create({
   },
   titles: {
     flex: 1,
-    gap: Spacing.one,
+    gap: 6,
+  },
+  kicker: {
+    letterSpacing: 1.8,
+    fontSize: 11,
   },
   right: {
     paddingTop: Spacing.one,

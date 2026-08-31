@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ArtThumb } from '@/components/art-thumb';
 import { CheckButton } from '@/components/check-button';
+import { PressScale } from '@/components/press-scale';
 import { ThemedText } from '@/components/themed-text';
 import { TypeBadge } from '@/components/type-badge';
 import { formatDose } from '@/constants/catalog';
@@ -26,36 +27,37 @@ export function DoseRow({
   const timeMinutes = time.getHours() * 60 + time.getMinutes();
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={[
-        styles.row,
-        {
-          backgroundColor: theme.surface,
-          borderColor: item.overdue && !taken ? theme.danger : theme.border,
-          opacity: taken ? 0.55 : 1,
-        },
-      ]}>
-      <View style={[styles.stripe, { backgroundColor: item.supplement.color }]} />
-      <View style={styles.thumbWrap}>
-        <ArtThumb type={item.supplement.type as SupplementType} />
-      </View>
-      <View style={styles.body}>
-        <View style={styles.top}>
-          <ThemedText type="headline" numberOfLines={1} style={styles.name}>
-            {item.supplement.name}
-          </ThemedText>
-          <TypeBadge type={item.supplement.type as SupplementType} />
+    <PressScale onPress={onPress}>
+      <View
+        style={[
+          styles.row,
+          {
+            backgroundColor: theme.surface,
+            borderColor: item.overdue && !taken ? `${theme.danger}99` : theme.border,
+            opacity: taken ? 0.5 : 1,
+          },
+        ]}>
+        <View style={[styles.stripe, { backgroundColor: item.supplement.color }]} />
+        <View style={styles.thumbWrap}>
+          <ArtThumb type={item.supplement.type as SupplementType} size={54} />
         </View>
-        <ThemedText type="callout" themeColor={item.overdue && !taken ? 'danger' : 'textSecondary'}>
-          {formatDose(item.amount, item.unit)} · {formatTimeMinutes(timeMinutes)}
-          {item.overdue && !taken ? ' · Overdue' : taken ? ' · Taken' : ''}
-        </ThemedText>
+        <View style={styles.body}>
+          <View style={styles.top}>
+            <ThemedText type="headline" numberOfLines={1} style={styles.name}>
+              {item.supplement.name}
+            </ThemedText>
+            <TypeBadge type={item.supplement.type as SupplementType} />
+          </View>
+          <ThemedText type="callout" themeColor={item.overdue && !taken ? 'danger' : 'textSecondary'}>
+            {formatDose(item.amount, item.unit)} · {formatTimeMinutes(timeMinutes)}
+            {item.overdue && !taken ? ' · Overdue' : taken ? ' · Taken' : ''}
+          </ThemedText>
+        </View>
+        <View style={styles.check}>
+          <CheckButton checked={taken} overdue={item.overdue} onPress={onToggle} />
+        </View>
       </View>
-      <View style={styles.check}>
-        <CheckButton checked={taken} overdue={item.overdue} onPress={onToggle} />
-      </View>
-    </Pressable>
+    </PressScale>
   );
 }
 
@@ -63,13 +65,13 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: Radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
     overflow: 'hidden',
-    minHeight: 76,
+    minHeight: 84,
   },
   stripe: {
-    width: 6,
+    width: 3,
     alignSelf: 'stretch',
   },
   thumbWrap: {

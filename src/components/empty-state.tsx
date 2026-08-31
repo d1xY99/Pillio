@@ -2,6 +2,7 @@ import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { GlassCard } from '@/components/glass-card';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -18,7 +19,7 @@ export function EmptyState({ icon, title, body, actionLabel, onAction }: EmptySt
   const theme = useTheme();
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+    <GlassCard style={styles.card}>
       <View style={[styles.iconWrap, { backgroundColor: theme.accentMuted }]}>
         <SymbolView name={icon} tintColor={theme.accent} size={28} weight="medium" />
       </View>
@@ -31,15 +32,12 @@ export function EmptyState({ icon, title, body, actionLabel, onAction }: EmptySt
           <Button label={actionLabel} onPress={onAction} />
         </View>
       ) : null}
-    </View>
+    </GlassCard>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: Radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: Spacing.four,
     alignItems: 'center',
     gap: Spacing.two,
   },
@@ -53,6 +51,7 @@ const styles = StyleSheet.create({
   },
   body: {
     textAlign: 'center',
+    maxWidth: 320,
   },
   action: {
     alignSelf: 'stretch',

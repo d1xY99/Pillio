@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AmbientBg } from '@/components/ambient-bg';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 
@@ -17,12 +18,13 @@ export function Screen({ children, scroll = true, padded = true }: ScreenProps) 
   const contentStyle = [
     styles.content,
     padded && styles.padded,
-    { paddingTop, paddingBottom: Spacing.four },
+    { paddingTop, paddingBottom: Spacing.six },
   ];
 
   if (!scroll) {
     return (
       <ThemedView style={styles.flex}>
+        <AmbientBg />
         <View style={[styles.flex, contentStyle]}>{children}</View>
       </ThemedView>
     );
@@ -30,6 +32,7 @@ export function Screen({ children, scroll = true, padded = true }: ScreenProps) 
 
   return (
     <ThemedView style={styles.flex}>
+      <AmbientBg />
       <ScrollView
         contentContainerStyle={contentStyle}
         showsVerticalScrollIndicator={false}

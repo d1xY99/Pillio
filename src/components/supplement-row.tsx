@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ArtThumb } from '@/components/art-thumb';
+import { PressScale } from '@/components/press-scale';
 import { ThemedText } from '@/components/themed-text';
 import { TypeBadge } from '@/components/type-badge';
 import { FORM_LABELS, formatDose } from '@/constants/catalog';
@@ -19,45 +20,45 @@ export function SupplementRow({
   const theme = useTheme();
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        {
-          backgroundColor: theme.surface,
-          borderColor: theme.border,
-          opacity: pressed ? 0.75 : 1,
-        },
-      ]}>
-      <View style={[styles.stripe, { backgroundColor: item.color }]} />
-      <View style={styles.thumbWrap}>
-        <ArtThumb type={item.type as SupplementType} />
-      </View>
-      <View style={styles.body}>
-        <View style={styles.titleRow}>
-          <ThemedText type="headline" style={styles.name} numberOfLines={1}>
-            {item.name}
-          </ThemedText>
-          <TypeBadge type={item.type as SupplementType} />
+    <PressScale onPress={onPress}>
+      <View
+        style={[
+          styles.row,
+          {
+            backgroundColor: theme.surface,
+            borderColor: theme.border,
+          },
+        ]}>
+        <View style={[styles.stripe, { backgroundColor: item.color }]} />
+        <View style={styles.thumbWrap}>
+          <ArtThumb type={item.type as SupplementType} size={54} />
         </View>
-        <ThemedText type="callout" themeColor="textSecondary">
-          {formatDose(item.defaultAmount, item.defaultUnit)} · {FORM_LABELS[item.form as SupplementForm]}
-        </ThemedText>
+        <View style={styles.body}>
+          <View style={styles.titleRow}>
+            <ThemedText type="headline" style={styles.name} numberOfLines={1}>
+              {item.name}
+            </ThemedText>
+            <TypeBadge type={item.type as SupplementType} />
+          </View>
+          <ThemedText type="callout" themeColor="textSecondary">
+            {formatDose(item.defaultAmount, item.defaultUnit)} · {FORM_LABELS[item.form as SupplementForm]}
+          </ThemedText>
+        </View>
       </View>
-    </Pressable>
+    </PressScale>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    borderRadius: Radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
     overflow: 'hidden',
-    minHeight: 76,
+    minHeight: 84,
   },
   stripe: {
-    width: 6,
+    width: 3,
   },
   thumbWrap: {
     paddingLeft: Spacing.two,

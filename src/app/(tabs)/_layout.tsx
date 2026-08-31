@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import { Platform } from 'react-native';
 
 import { useTheme } from '@/hooks/use-theme';
 
@@ -14,11 +15,15 @@ export default function TabLayout() {
         tabBarInactiveTintColor: theme.textTertiary,
         tabBarStyle: {
           backgroundColor: theme.tabBar,
-          borderTopColor: theme.tabBarBorder,
+          borderTopWidth: 0,
+          elevation: 0,
+          height: Platform.OS === 'web' ? 64 : undefined,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
+          fontSize: 10,
+          fontWeight: '700',
+          letterSpacing: 0.6,
+          textTransform: 'uppercase',
         },
       }}>
       <Tabs.Screen

@@ -30,21 +30,22 @@ export function ThemedText({
 
 const styles = StyleSheet.create({
   display: {
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: 38,
+    lineHeight: 42,
     fontWeight: '700',
-    letterSpacing: -0.6,
+    letterSpacing: -1.2,
   },
   title: {
     fontSize: 28,
     lineHeight: 34,
     fontWeight: '700',
-    letterSpacing: -0.4,
+    letterSpacing: -0.6,
   },
   headline: {
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 18,
+    lineHeight: 24,
     fontWeight: '600',
+    letterSpacing: -0.2,
   },
   body: {
     fontSize: 16,

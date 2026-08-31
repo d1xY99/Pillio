@@ -11,9 +11,9 @@ export function TypeBadge({ type }: { type: SupplementType }) {
   const color = theme[type];
 
   return (
-    <View style={[styles.badge, { backgroundColor: `${color}22`, borderColor: `${color}55` }]}>
-      <ThemedText type="captionBold" style={{ color }}>
-        {TYPE_LABELS[type]}
+    <View style={[styles.badge, { backgroundColor: `${color}22`, borderColor: `${color}66` }]}>
+      <ThemedText type="captionBold" style={[styles.label, { color }]}>
+        {TYPE_LABELS[type].toUpperCase()}
       </ThemedText>
     </View>
   );
@@ -21,10 +21,14 @@ export function TypeBadge({ type }: { type: SupplementType }) {
 
 const styles = StyleSheet.create({
   badge: {
-    paddingHorizontal: Spacing.two,
+    paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: Radius.full,
     borderWidth: StyleSheet.hairlineWidth,
     alignSelf: 'flex-start',
+  },
+  label: {
+    fontSize: 10,
+    letterSpacing: 0.8,
   },
 });

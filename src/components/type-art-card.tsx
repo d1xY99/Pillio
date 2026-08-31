@@ -53,6 +53,10 @@ const styles = StyleSheet.create({
   },
   selected: {
     borderColor: '#3EE0B7',
+    shadowColor: '#3EE0B7',
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
   },
   image: {
     ...StyleSheet.absoluteFill,

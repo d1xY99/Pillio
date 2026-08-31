@@ -7,6 +7,7 @@ import { StyleSheet, View } from 'react-native';
 import { DoseRow } from '@/components/dose-row';
 import { EmptyState } from '@/components/empty-state';
 import { FadeIn } from '@/components/fade-in';
+import { GlassCard } from '@/components/glass-card';
 import { HeroBanner } from '@/components/hero-banner';
 import { IconButton } from '@/components/icon-button';
 import { PulseRing } from '@/components/pulse-ring';
@@ -89,7 +90,7 @@ export default function TodayScreen() {
       />
 
       <FadeIn delay={80}>
-        <View style={[styles.summary, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <GlassCard glow={total > 0 && taken < total} padded={false} style={styles.summary}>
           <PulseRing color={theme.accent} active={total > 0 && taken < total}>
             <View
               style={[
@@ -112,7 +113,7 @@ export default function TodayScreen() {
                 : 'Tap the circle when a dose is in. Undo anytime today.'}
             </ThemedText>
           </View>
-        </View>
+        </GlassCard>
       </FadeIn>
 
       {total === 0 ? (
@@ -166,10 +167,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-    borderRadius: Radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: Spacing.four,
     marginBottom: Spacing.four,
+    padding: Spacing.three,
   },
   ring: {
     width: 72,
