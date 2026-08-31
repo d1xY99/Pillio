@@ -2,13 +2,15 @@ import { DarkTheme, DefaultTheme, ThemeProvider, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { AppState, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { ThemedText } from '@/components/themed-text';
 import { initDatabase } from '@/db/client';
 import { ensureUpcomingDoses } from '@/domain/doses';
 import { useTheme, useThemeName } from '@/hooks/use-theme';
+import '@/notifications/handler';
+import { syncDoseReminders } from '@/notifications/sync';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -22,12 +24,21 @@ export default function RootLayout() {
     try {
       initDatabase();
       ensureUpcomingDoses();
+      void syncDoseReminders();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not open local database');
     } finally {
       setReady(true);
       SplashScreen.hideAsync();
     }
+
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') {
+        ensureUpcomingDoses();
+        void syncDoseReminders();
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   const navigationTheme = {

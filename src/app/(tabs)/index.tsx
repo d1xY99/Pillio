@@ -12,7 +12,7 @@ import { ScreenHeader } from '@/components/screen-header';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
-import { markDoseTaken, undoDose } from '@/db/queries/doses';
+import { takeDose, untakeDose } from '@/domain/logging';
 import { doseLogs } from '@/db/schema';
 import type { DoseUnit } from '@/db/types';
 import { ensureUpcomingDoses, groupDosesByTime, listTodayDoses } from '@/domain/doses';
@@ -116,9 +116,9 @@ export default function TodayScreen() {
                   }
                   onToggle={() => {
                     if (item.takenAt) {
-                      undoDose(item.id);
+                      void untakeDose(item.id);
                     } else {
-                      markDoseTaken(item.id, {
+                      void takeDose(item.id, {
                         amount: item.supplement.defaultAmount,
                         unit: item.supplement.defaultUnit as DoseUnit,
                       });

@@ -22,6 +22,7 @@ import { ensureDosesForRange } from '@/domain/doses';
 import { draftFromSchedules, describeSchedule } from '@/domain/schedule';
 import { addLocalDays, endOfLocalDay, formatDateTime, startOfLocalDay } from '@/domain/time';
 import { useTheme } from '@/hooks/use-theme';
+import { syncDoseReminders } from '@/notifications/sync';
 
 export default function SupplementDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -92,6 +93,7 @@ export default function SupplementDetailScreen() {
           style: item.archived ? 'default' : 'destructive',
           onPress: () => {
             setSupplementArchived(item.id, !item.archived);
+            void syncDoseReminders();
             router.back();
           },
         },

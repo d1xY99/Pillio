@@ -16,6 +16,7 @@ import {
 } from '@/domain/schedule';
 import { dateToMinutes, formatTimeMinutes, minutesToDate } from '@/domain/time';
 import { useTheme } from '@/hooks/use-theme';
+import { requestReminderPermission } from '@/notifications/permissions';
 
 const FREQUENCY_LABELS: Record<ScheduleFrequency, string> = {
   daily: 'Daily',
@@ -170,7 +171,15 @@ export function ScheduleFields({
         </View>
         <Switch
           value={value.reminderEnabled}
-          onValueChange={(reminderEnabled) => update({ reminderEnabled })}
+          onValueChange={(reminderEnabled) => {
+            if (!reminderEnabled) {
+              update({ reminderEnabled: false });
+              return;
+            }
+            void requestReminderPermission().then((granted) => {
+              update({ reminderEnabled: granted });
+            });
+          }}
           trackColor={{ true: theme.accent, false: theme.border }}
         />
       </View>

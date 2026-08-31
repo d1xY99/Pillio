@@ -14,6 +14,7 @@ import {
   type SupplementInput,
 } from '@/db/queries/supplements';
 import { saveSchedules } from '@/domain/doses';
+import { syncDoseReminders } from '@/notifications/sync';
 import { DEFAULT_SCHEDULE, draftFromSchedules, type ScheduleDraft } from '@/domain/schedule';
 import { startOfLocalDay } from '@/domain/time';
 
@@ -38,12 +39,14 @@ export default function SupplementFormScreen() {
     if (existing) {
       updateSupplement(existing.id, input);
       saveSchedules(existing.id, schedule);
+      void syncDoseReminders();
       router.back();
       return;
     }
 
     const created = createSupplement(input);
     saveSchedules(created.id, schedule);
+    void syncDoseReminders();
     router.replace({ pathname: '/supplement/[id]', params: { id: created.id } });
   }
 
