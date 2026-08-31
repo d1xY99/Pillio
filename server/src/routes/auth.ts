@@ -42,7 +42,16 @@ authRoutes.post('/sign-in', async (c) => {
   if (!email || !password) return c.json({ error: 'Email and password are required' }, 400);
 
   const { data, error } = await anonClient().auth.signInWithPassword({ email, password });
-  if (error || !data.session) return c.json({ error: error?.message ?? 'Could not sign in' }, 401);
+  if (error || !data.session) {
+    const message = error?.message ?? 'Could not sign in';
+    const hint =
+      /confirm/i.test(message)
+        ? 'This email is not confirmed yet. Turn off Confirm email in Supabase, or use the link in your inbox.'
+        : /invalid/i.test(message)
+          ? 'Wrong email or password.'
+          : message;
+    return c.json({ error: hint }, 400);
+  }
   return c.json({ session: data.session, user: publicUser(data.session.user) });
 });
 
