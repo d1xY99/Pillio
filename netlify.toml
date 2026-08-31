@@ -10,19 +10,15 @@
   node_bundler = "esbuild"
 
 [[headers]]
-  for = "/*"
+  for = "/sw.js"
   [headers.values]
-    Cross-Origin-Embedder-Policy = "require-corp"
-    Cross-Origin-Opener-Policy = "same-origin"
-    Cross-Origin-Resource-Policy = "same-origin"
+    Cache-Control = "no-cache"
+    Service-Worker-Allowed = "/"
 
 [[headers]]
   for = "/**/*.wasm"
   [headers.values]
     Content-Type = "application/wasm"
-    Cross-Origin-Embedder-Policy = "require-corp"
-    Cross-Origin-Opener-Policy = "same-origin"
-    Cross-Origin-Resource-Policy = "same-origin"
 
 [[redirects]]
   from = "/sql-wasm.wasm"

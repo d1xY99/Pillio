@@ -1,12 +1,7 @@
 import { getStore } from '@netlify/blobs';
-import webpush from 'web-push';
+import { sendPush } from './_push.mjs';
 
-const VAPID_PUBLIC =
-  'BDIeR0nsom-ayGildXnmR7ySYlTDNXwh-BJcxCAmKQ1B_txQoY4YI1_vsWcO5qEGy1fIqGGa5iFMzmi98dUqAbM';
-const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || 'lUKbFuBjIHOhlNLaYezsA59f5vRTNbMMvRQrJKWvDuI';
 const CRON_SECRET = process.env.PILLIO_CRON_SECRET || 'pillio-dispatch-2026';
-
-webpush.setVapidDetails('mailto:pillio@local', VAPID_PUBLIC, VAPID_PRIVATE);
 
 export const config = {
   schedule: '* * * * *',
@@ -17,7 +12,7 @@ function isAllowed(request) {
   if (auth === `Bearer ${CRON_SECRET}`) return true;
   const origin = request.headers.get('origin') || '';
   if (origin.includes('pillioo.netlify.app') || origin.includes('localhost')) return true;
-  if (!origin && request.method === 'POST') return true;
+  if (!origin) return true;
   return false;
 }
 
@@ -53,14 +48,7 @@ export default async (request) => {
       }
 
       try {
-        await webpush.sendNotification(
-          record.subscription,
-          JSON.stringify({
-            title: dose.title || 'Pillio',
-            body: dose.body || 'A dose is still unchecked.',
-            doseId: dose.id,
-          }),
-        );
+        await sendPush(record.subscription, dose);
         sent += 1;
         next.push({ ...dose, sent: true });
         changed = true;

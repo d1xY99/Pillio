@@ -1,11 +1,5 @@
 import { getStore } from '@netlify/blobs';
-import webpush from 'web-push';
-
-const VAPID_PUBLIC =
-  'BDIeR0nsom-ayGildXnmR7ySYlTDNXwh-BJcxCAmKQ1B_txQoY4YI1_vsWcO5qEGy1fIqGGa5iFMzmi98dUqAbM';
-const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || 'lUKbFuBjIHOhlNLaYezsA59f5vRTNbMMvRQrJKWvDuI';
-
-webpush.setVapidDetails('mailto:pillio@local', VAPID_PUBLIC, VAPID_PRIVATE);
+import { sendPush } from './_push.mjs';
 
 export default async (request) => {
   if (request.method !== 'POST') {
@@ -32,28 +26,37 @@ export default async (request) => {
   let sent = 0;
   if (subscription?.endpoint) {
     const now = Date.now();
-    const due = sendTest
-      ? [
-          {
-            title: 'Pillio',
-            body: 'Reminders are on. You will get this if a dose is still open at its time.',
-          },
-        ]
-      : doses.filter((dose) => dose?.at && dose.at <= now + 20_000);
-
-    for (const dose of due) {
+    if (sendTest) {
       try {
-        await webpush.sendNotification(
-          subscription,
-          JSON.stringify({
-            title: dose.title || 'Pillio',
-            body: dose.body || 'A dose is still unchecked.',
-            doseId: dose.id,
-          }),
-        );
+        await sendPush(subscription, {
+          title: 'Pillio',
+          body: 'Reminders are on. You will get this if a dose is still open at its time.',
+        });
         sent += 1;
       } catch {
-        // expired subscription
+        // ignore
+      }
+    }
+
+    const origin = new URL(request.url).origin;
+    for (const dose of doses) {
+      if (!dose?.at) continue;
+      const waitMs = dose.at - now;
+      if (waitMs <= 15_000) {
+        try {
+          await sendPush(subscription, dose);
+          sent += 1;
+        } catch {
+          // ignore
+        }
+        continue;
+      }
+      if (waitMs <= 14 * 60 * 1000) {
+        fetch(`${origin}/.netlify/functions/wait-send-background`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ waitMs, subscription, dose }),
+        }).catch(() => {});
       }
     }
   }

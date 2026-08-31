@@ -7,34 +7,51 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  let payload = {
-    title: 'Pillio',
-    body: 'A dose is still unchecked.',
-  };
+  event.waitUntil(showFromPush(event));
+});
+
+async function showFromPush(event) {
+  let title = 'Pillio';
+  let body = 'A dose is still unchecked.';
+  let data = {};
   try {
-    if (event.data) payload = { ...payload, ...event.data.json() };
+    if (event.data) {
+      data = event.data.json();
+      const note = data.notification || data;
+      title = note.title || data.title || title;
+      body = note.body || data.body || body;
+    }
   } catch {
-    // keep defaults
+    try {
+      body = event.data ? event.data.text() : body;
+    } catch {
+      // keep defaults
+    }
   }
 
+  await self.registration.showNotification(title, {
+    body,
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: data.doseId || title,
+    renotify: true,
+    data,
+  });
+}
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = 'https://pillioo.netlify.app/';
   event.waitUntil(
-    self.registration.showNotification(payload.title || 'Pillio', {
-      body: payload.body || 'A dose is still unchecked.',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      data: payload,
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus();
+      }
+      return self.clients.openWindow(target);
     }),
   );
 });
 
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      for (const client of clients) {
-        if ('focus' in client) return client.focus();
-      }
-      return self.clients.openWindow('/');
-    }),
-  );
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(self.registration.pushManager.subscribe({ userVisibleOnly: true }));
 });
