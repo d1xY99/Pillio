@@ -9,10 +9,12 @@ import { LineChart } from 'react-native-gifted-charts';
 import { Button } from '@/components/button';
 import { ChoiceChips } from '@/components/choice-chips';
 import { EmptyState } from '@/components/empty-state';
+import { HeroBanner } from '@/components/hero-banner';
 import { Screen } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
+import { ART } from '@/constants/art';
 import { formatKg } from '@/constants/gym';
 import { Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
@@ -71,6 +73,13 @@ export default function ProgressScreen() {
   return (
     <Screen>
       <ScreenHeader title="Progress" subtitle="Body weight and photos" />
+
+      <HeroBanner
+        source={ART.progress}
+        kicker="PHYSIQUE"
+        title={latest ? formatKg(latest.weightKg) : 'Log the first weigh-in.'}
+        body={latest ? formatDayLabel(latest.loggedAt) : 'Track weight and compare photos over time.'}
+      />
 
       <View style={[styles.hero, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <ThemedText type="captionBold" themeColor="textTertiary">

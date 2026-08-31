@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { ArtThumb } from '@/components/art-thumb';
 import { ThemedText } from '@/components/themed-text';
 import { TypeBadge } from '@/components/type-badge';
 import { FORM_LABELS, formatDose } from '@/constants/catalog';
@@ -29,6 +30,9 @@ export function SupplementRow({
         },
       ]}>
       <View style={[styles.stripe, { backgroundColor: item.color }]} />
+      <View style={styles.thumbWrap}>
+        <ArtThumb type={item.type as SupplementType} />
+      </View>
       <View style={styles.body}>
         <View style={styles.titleRow}>
           <ThemedText type="headline" style={styles.name} numberOfLines={1}>
@@ -54,6 +58,10 @@ const styles = StyleSheet.create({
   },
   stripe: {
     width: 6,
+  },
+  thumbWrap: {
+    paddingLeft: Spacing.two,
+    justifyContent: 'center',
   },
   body: {
     flex: 1,

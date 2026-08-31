@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { ArtThumb } from '@/components/art-thumb';
 import { CheckButton } from '@/components/check-button';
 import { ThemedText } from '@/components/themed-text';
 import { TypeBadge } from '@/components/type-badge';
@@ -36,6 +37,9 @@ export function DoseRow({
         },
       ]}>
       <View style={[styles.stripe, { backgroundColor: item.supplement.color }]} />
+      <View style={styles.thumbWrap}>
+        <ArtThumb type={item.supplement.type as SupplementType} />
+      </View>
       <View style={styles.body}>
         <View style={styles.top}>
           <ThemedText type="headline" numberOfLines={1} style={styles.name}>
@@ -67,6 +71,10 @@ const styles = StyleSheet.create({
   stripe: {
     width: 6,
     alignSelf: 'stretch',
+  },
+  thumbWrap: {
+    paddingLeft: Spacing.two,
+    justifyContent: 'center',
   },
   body: {
     flex: 1,

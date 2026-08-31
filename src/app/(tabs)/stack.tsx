@@ -6,11 +6,14 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { EmptyState } from '@/components/empty-state';
 import { Fab } from '@/components/fab';
+import { FadeIn } from '@/components/fade-in';
 import { Screen } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
 import { SupplementRow } from '@/components/supplement-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ArtThumb } from '@/components/art-thumb';
+import { TypeArtCard } from '@/components/type-art-card';
 import { TYPE_LABELS } from '@/constants/catalog';
 import { Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
@@ -60,32 +63,46 @@ export default function StackScreen() {
         />
 
         {data.length === 0 ? (
-          <EmptyState
-            icon="pills.fill"
-            title={showArchived ? 'Nothing archived' : 'Nothing in your stack'}
-            body={
-              showArchived
-                ? 'Archived items stay out of Today until you restore them.'
-                : 'Track each item, its dose, and when it is due. History will show what you have used so far.'
-            }
-          />
+          <FadeIn>
+            {!showArchived ? (
+              <View style={styles.typeRow}>
+                <TypeArtCard type="vitamin" delay={40} />
+                <TypeArtCard type="peptide" delay={120} />
+                <TypeArtCard type="supplement" delay={200} />
+              </View>
+            ) : null}
+            <EmptyState
+              icon="pills.fill"
+              title={showArchived ? 'Nothing archived' : 'Build your stack'}
+              body={
+                showArchived
+                  ? 'Archived items stay out of Today until you restore them.'
+                  : 'Vitamins, peptides, and gym supplements — each with dose, schedule, and history.'
+              }
+            />
+          </FadeIn>
         ) : (
           <View style={styles.groups}>
-            {grouped.map((group) => (
-              <View key={group.type} style={styles.group}>
-                <ThemedText type="captionBold" themeColor="textTertiary">
-                  {TYPE_LABELS[group.type].toUpperCase()}
-                </ThemedText>
-                {group.items.map((item) => (
-                  <SupplementRow
-                    key={item.id}
-                    item={item}
-                    onPress={() =>
-                      router.push({ pathname: '/supplement/[id]', params: { id: item.id } })
-                    }
-                  />
-                ))}
-              </View>
+            {grouped.map((group, index) => (
+              <FadeIn key={group.type} delay={index * 80}>
+                <View style={styles.group}>
+                  <View style={styles.groupHead}>
+                    <ArtThumb type={group.type} size={28} />
+                    <ThemedText type="captionBold" themeColor="textTertiary">
+                      {TYPE_LABELS[group.type].toUpperCase()}
+                    </ThemedText>
+                  </View>
+                  {group.items.map((item) => (
+                    <SupplementRow
+                      key={item.id}
+                      item={item}
+                      onPress={() =>
+                        router.push({ pathname: '/supplement/[id]', params: { id: item.id } })
+                      }
+                    />
+                  ))}
+                </View>
+              </FadeIn>
             ))}
           </View>
         )}
@@ -112,6 +129,16 @@ const styles = StyleSheet.create({
     paddingBottom: 88,
   },
   group: {
+    gap: Spacing.two,
+  },
+  typeRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    marginBottom: Spacing.four,
+  },
+  groupHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.two,
   },
 });

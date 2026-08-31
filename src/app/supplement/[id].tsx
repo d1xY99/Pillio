@@ -4,11 +4,15 @@ import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from '
 import { useCallback, useEffect, useMemo } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+
 import { Button } from '@/components/button';
 import { Heatmap } from '@/components/heatmap';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { TypeBadge } from '@/components/type-badge';
+import { TYPE_ART } from '@/constants/art';
 import { FORM_LABELS, formatDose } from '@/constants/catalog';
 import { Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
@@ -104,15 +108,26 @@ export default function SupplementDetailScreen() {
   return (
     <Screen>
       <View style={[styles.hero, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <View style={[styles.dot, { backgroundColor: item.color }]} />
-        <TypeBadge type={item.type as SupplementType} />
-        <ThemedText type="display">{formatDose(item.defaultAmount, item.defaultUnit)}</ThemedText>
-        <ThemedText type="callout" themeColor="textSecondary">
-          {FORM_LABELS[item.form as SupplementForm]}
-        </ThemedText>
-        <ThemedText type="callout" themeColor="textSecondary">
-          {schedules.length ? scheduleLabel : 'No schedule yet'}
-        </ThemedText>
+        <Image
+          source={TYPE_ART[item.type as SupplementType]}
+          style={styles.heroImage}
+          contentFit="cover"
+        />
+        <LinearGradient
+          colors={['rgba(11,13,16,0.2)', 'rgba(11,13,16,0.92)']}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.heroCopy}>
+          <View style={[styles.dot, { backgroundColor: item.color }]} />
+          <TypeBadge type={item.type as SupplementType} />
+          <ThemedText type="display">{formatDose(item.defaultAmount, item.defaultUnit)}</ThemedText>
+          <ThemedText type="callout" themeColor="textSecondary">
+            {FORM_LABELS[item.form as SupplementForm]}
+          </ThemedText>
+          <ThemedText type="callout" themeColor="textSecondary">
+            {schedules.length ? scheduleLabel : 'No schedule yet'}
+          </ThemedText>
+        </View>
       </View>
 
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -177,9 +192,18 @@ const styles = StyleSheet.create({
   hero: {
     borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    minHeight: 220,
+    marginBottom: Spacing.three,
+  },
+  heroImage: {
+    ...StyleSheet.absoluteFill,
+  },
+  heroCopy: {
     padding: Spacing.four,
     gap: Spacing.two,
-    marginBottom: Spacing.three,
+    minHeight: 220,
+    justifyContent: 'flex-end',
   },
   dot: {
     width: 14,

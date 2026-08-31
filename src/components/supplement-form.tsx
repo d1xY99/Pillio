@@ -5,11 +5,11 @@ import { Button } from '@/components/button';
 import { ChoiceChips } from '@/components/choice-chips';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
+import { TypeArtCard } from '@/components/type-art-card';
 import {
   COLOR_SWATCHES,
   FORM_LABELS,
   TYPE_COLORS,
-  TYPE_LABELS,
   UNIT_LABELS,
 } from '@/constants/catalog';
 import { Radius, Spacing } from '@/constants/theme';
@@ -85,7 +85,17 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit, children 
       />
 
       <FieldLabel label="Type" />
-      <ChoiceChips options={SUPPLEMENT_TYPES} value={type} labels={TYPE_LABELS} onChange={handleTypeChange} />
+      <View style={styles.typeRow}>
+        {SUPPLEMENT_TYPES.map((option, index) => (
+          <TypeArtCard
+            key={option}
+            type={option}
+            selected={type === option}
+            delay={index * 60}
+            onPress={() => handleTypeChange(option)}
+          />
+        ))}
+      </View>
 
       <FieldLabel label="Form" />
       <ChoiceChips options={SUPPLEMENT_FORMS} value={form} labels={FORM_LABELS} onChange={setForm} />
@@ -151,6 +161,10 @@ const styles = StyleSheet.create({
   form: {
     gap: Spacing.three,
     paddingBottom: Spacing.six,
+  },
+  typeRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
   },
   swatches: {
     flexDirection: 'row',

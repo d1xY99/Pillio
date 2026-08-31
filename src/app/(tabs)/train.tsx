@@ -6,9 +6,12 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { EmptyState } from '@/components/empty-state';
+import { FadeIn } from '@/components/fade-in';
+import { HeroBanner } from '@/components/hero-banner';
 import { Screen } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
 import { ThemedText } from '@/components/themed-text';
+import { ART } from '@/constants/art';
 import { formatKg } from '@/constants/gym';
 import { Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
@@ -56,9 +59,18 @@ export default function TrainScreen() {
     <Screen>
       <ScreenHeader title="Train" subtitle="Working weights and sessions" />
 
-      <View style={styles.cta}>
-        <Button label={open ? 'Resume workout' : 'Start workout'} onPress={startOrResume} />
-      </View>
+      <HeroBanner
+        source={ART.train}
+        kicker="STRENGTH"
+        title={open ? 'Session in progress.' : 'Load the bar.'}
+        body="Every set remembers the last weight you moved."
+      />
+
+      <FadeIn delay={80}>
+        <View style={styles.cta}>
+          <Button label={open ? 'Resume workout' : 'Start workout'} onPress={startOrResume} />
+        </View>
+      </FadeIn>
 
       {lifts.length > 0 ? (
         <View style={styles.section}>

@@ -1,6 +1,11 @@
 import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, {
+  ZoomIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
 import { useTheme } from '@/hooks/use-theme';
 
@@ -38,7 +43,9 @@ export function CheckButton({ checked, overdue, onPress }: CheckButtonProps) {
           { borderColor, backgroundColor },
         ]}>
         {checked ? (
-          <SymbolView name="checkmark" tintColor="#0B0D10" size={18} weight="bold" />
+          <Animated.View entering={ZoomIn.springify().damping(14)}>
+            <SymbolView name="checkmark" tintColor="#0B0D10" size={18} weight="bold" />
+          </Animated.View>
         ) : null}
       </Animated.View>
     </Pressable>
