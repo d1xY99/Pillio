@@ -5,6 +5,7 @@ import { Platform, Pressable, StyleSheet, Switch, View } from 'react-native';
 import { ChoiceChips } from '@/components/choice-chips';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
+import { WebTimeInput } from '@/components/web-time-input';
 import { Radius, Spacing } from '@/constants/theme';
 import { SCHEDULE_FREQUENCIES, type ScheduleFrequency } from '@/db/types';
 import {
@@ -17,6 +18,19 @@ import {
 import { dateToMinutes, formatTimeMinutes, minutesToDate } from '@/domain/time';
 import { useTheme } from '@/hooks/use-theme';
 import { requestReminderPermission } from '@/notifications/permissions';
+
+function toInputTime(minutes: number): string {
+  const hours = Math.floor(minutes / 60)
+    .toString()
+    .padStart(2, '0');
+  const mins = (minutes % 60).toString().padStart(2, '0');
+  return `${hours}:${mins}`;
+}
+
+function fromInputTime(value: string): number {
+  const [hours, minutes] = value.split(':').map(Number);
+  return (hours || 0) * 60 + (minutes || 0);
+}
 
 const FREQUENCY_LABELS: Record<ScheduleFrequency, string> = {
   daily: 'Daily',
@@ -73,22 +87,36 @@ export function ScheduleFields({
 
       {editingTime !== null ? (
         <View>
-          <DateTimePicker
-            value={minutesToDate(value.times[editingTime] ?? 9 * 60)}
-            mode="time"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={(_, date) => {
-              if (!date) {
+          {Platform.OS === 'web' ? (
+            <WebTimeInput
+              value={toInputTime(value.times[editingTime] ?? 9 * 60)}
+              color={theme.text}
+              background={theme.surface}
+              border={theme.border}
+              onChange={(time) => {
+                const next = [...value.times];
+                next[editingTime] = fromInputTime(time);
+                update({ times: next });
+              }}
+            />
+          ) : (
+            <DateTimePicker
+              value={minutesToDate(value.times[editingTime] ?? 9 * 60)}
+              mode="time"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(_, date) => {
+                if (!date) {
+                  if (Platform.OS === 'android') setEditingTime(null);
+                  return;
+                }
+                const next = [...value.times];
+                next[editingTime] = dateToMinutes(date);
+                update({ times: next });
                 if (Platform.OS === 'android') setEditingTime(null);
-                return;
-              }
-              const next = [...value.times];
-              next[editingTime] = dateToMinutes(date);
-              update({ times: next });
-              if (Platform.OS === 'android') setEditingTime(null);
-            }}
-          />
-          {Platform.OS === 'ios' ? (
+              }}
+            />
+          )}
+          {Platform.OS === 'ios' || Platform.OS === 'web' ? (
             <Pressable onPress={() => setEditingTime(null)}>
               <ThemedText type="callout" themeColor="accent">
                 Done

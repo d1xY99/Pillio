@@ -1,0 +1,24 @@
+[build]
+  command = "npx expo export --platform web"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cross-Origin-Embedder-Policy = "credentialless"
+    Cross-Origin-Opener-Policy = "same-origin"
+
+[[headers]]
+  for = "/**/*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
+    Cross-Origin-Embedder-Policy = "credentialless"
+    Cross-Origin-Opener-Policy = "same-origin"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

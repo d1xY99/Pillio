@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
@@ -13,6 +13,7 @@ import { syncDoseReminders } from '@/notifications/sync';
 export default function SettingsScreen() {
   const theme = useTheme();
   const [permission, setPermission] = useState<'granted' | 'denied' | 'undetermined'>('undetermined');
+  const web = Platform.OS === 'web';
 
   const refresh = useCallback(() => {
     void getReminderPermission().then(setPermission);
@@ -29,38 +30,57 @@ export default function SettingsScreen() {
 
   return (
     <ThemedView style={styles.screen}>
+      {web ? (
+        <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <ThemedText type="headline">Add to Home Screen</ThemedText>
+          <ThemedText type="callout" themeColor="textSecondary">
+            On iPhone, open this site in Safari, tap Share, then Add to Home Screen. You get a Pillio
+            icon. Data stays in this browser.
+          </ThemedText>
+        </View>
+      ) : null}
+
       <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <ThemedText type="headline">Reminders</ThemedText>
-        <ThemedText type="callout" themeColor="textSecondary">
-          Notifications fire at the due time only if a dose is still unchecked. Checking it off
-          early cancels that reminder.
-        </ThemedText>
-        <ThemedText type="captionBold" themeColor="accent">
-          Status: {permissionLabel}
-        </ThemedText>
-        {permission !== 'granted' ? (
-          <Button
-            label={permission === 'denied' ? 'Open iOS Settings' : 'Allow notifications'}
-            onPress={() => {
-              if (permission === 'denied') {
-                void Linking.openSettings();
-                return;
-              }
-              void requestReminderPermission().then((granted) => {
-                setPermission(granted ? 'granted' : 'denied');
-                if (granted) void syncDoseReminders();
-              });
-            }}
-          />
+        {web ? (
+          <ThemedText type="callout" themeColor="textSecondary">
+            Home Screen web mode cannot fire iOS notifications at 10:00. Open Today to see overdue
+            doses. For real reminders, use Expo Go.
+          </ThemedText>
         ) : (
-          <Pressable
-            onPress={() => {
-              void syncDoseReminders();
-            }}>
-            <ThemedText type="callout" themeColor="accent">
-              Resync upcoming reminders
+          <>
+            <ThemedText type="callout" themeColor="textSecondary">
+              Notifications fire at the due time only if a dose is still unchecked. Checking it off
+              early cancels that reminder.
             </ThemedText>
-          </Pressable>
+            <ThemedText type="captionBold" themeColor="accent">
+              Status: {permissionLabel}
+            </ThemedText>
+            {permission !== 'granted' ? (
+              <Button
+                label={permission === 'denied' ? 'Open iOS Settings' : 'Allow notifications'}
+                onPress={() => {
+                  if (permission === 'denied') {
+                    void Linking.openSettings();
+                    return;
+                  }
+                  void requestReminderPermission().then((granted) => {
+                    setPermission(granted ? 'granted' : 'denied');
+                    if (granted) void syncDoseReminders();
+                  });
+                }}
+              />
+            ) : (
+              <Pressable
+                onPress={() => {
+                  void syncDoseReminders();
+                }}>
+                <ThemedText type="callout" themeColor="accent">
+                  Resync upcoming reminders
+                </ThemedText>
+              </Pressable>
+            )}
+          </>
         )}
       </View>
 
