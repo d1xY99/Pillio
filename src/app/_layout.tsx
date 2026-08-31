@@ -77,6 +77,21 @@ export default function RootLayout() {
               title: 'Settings',
             }}
           />
+          <Stack.Screen
+            name="supplement/[id]"
+            options={{
+              headerShown: true,
+              title: 'Supplement',
+            }}
+          />
+          <Stack.Screen
+            name="supplement/form"
+            options={{
+              headerShown: true,
+              title: 'Add to stack',
+              presentation: 'modal',
+            }}
+          />
         </Stack>
       </ThemeProvider>
     </GestureHandlerRootView>

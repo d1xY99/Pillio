@@ -12,7 +12,7 @@ let db: AppDatabase | null = null;
 
 export function getDb(): AppDatabase {
   if (!db) {
-    throw new Error('Database has not been initialized');
+    return initDatabase();
   }
   return db;
 }
