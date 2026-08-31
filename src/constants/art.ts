@@ -12,7 +12,7 @@ const native = {
 };
 
 const web = {
-  vitamin: { uri: '/art/vitamin.jpg?v=2' },
+  vitamin: { uri: '/art/vitamin.jpg?v=3' },
   peptide: { uri: '/art/peptide.jpg?v=2' },
   supplement: { uri: '/art/supplement.jpg?v=2' },
   train: { uri: '/art/train.jpg?v=2' },

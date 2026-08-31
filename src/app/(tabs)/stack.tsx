@@ -5,8 +5,8 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { EmptyState } from '@/components/empty-state';
-import { Fab } from '@/components/fab';
 import { FadeIn } from '@/components/fade-in';
+import { UiIcon } from '@/components/ui-icon';
 import { Screen } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
 import { SupplementRow } from '@/components/supplement-row';
@@ -52,13 +52,25 @@ export default function StackScreen() {
           title="Stack"
           subtitle={showArchived ? 'Archived items' : 'Vitamins, peptides, and supplements'}
           right={
-            <Pressable
-              onPress={() => setShowArchived((value) => !value)}
-              style={[styles.toggle, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-              <ThemedText type="captionBold" themeColor={showArchived ? 'accent' : 'textSecondary'}>
-                {showArchived ? 'Active' : 'Archived'}
-              </ThemedText>
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable
+                onPress={() => setShowArchived((value) => !value)}
+                style={[styles.toggle, { borderColor: theme.border, backgroundColor: theme.surface }]}>
+                <ThemedText type="captionBold" themeColor={showArchived ? 'accent' : 'textSecondary'}>
+                  {showArchived ? 'Active' : 'Archived'}
+                </ThemedText>
+              </Pressable>
+              {!showArchived ? (
+                <Pressable
+                  onPress={() => router.push('/supplement/form')}
+                  style={[styles.add, { backgroundColor: theme.accent }]}>
+                  <UiIcon name="plus" color="#06110D" size={14} />
+                  <ThemedText type="captionBold" style={styles.addLabel}>
+                    Add
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+            </View>
           }
         />
 
@@ -107,9 +119,7 @@ export default function StackScreen() {
           </View>
         )}
       </Screen>
-      {!showArchived ? (
-        <Fab accessibilityLabel="Add to stack" onPress={() => router.push('/supplement/form')} />
-      ) : null}
+
     </ThemedView>
   );
 }
@@ -118,11 +128,27 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   toggle: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: Radius.full,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
+  },
+  add: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.full,
+  },
+  addLabel: {
+    color: '#06110D',
   },
   groups: {
     gap: Spacing.four,
