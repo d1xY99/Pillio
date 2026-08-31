@@ -151,6 +151,21 @@ export async function pushToCloud() {
   await upsert('workout_sets', allSets.map((row) => toSet(row, uid)));
   await upsert('body_weights', allWeights.map((row) => toWeight(row, uid)));
   await upsert('progress_photos', allPhotos.map((row) => toPhoto(row, uid)));
+
+  // Local is source of truth: drop remote rows that are gone on this phone.
+  // Children first so FK/cascade order stays valid.
+  await deleteMissing('dose_logs', uid, ids(allDoses));
+  await deleteMissing('workout_sets', uid, ids(allSets));
+  await deleteMissing('schedules', uid, ids(allSchedules));
+  await deleteMissing('workout_sessions', uid, ids(allSessions));
+  await deleteMissing('body_weights', uid, ids(allWeights));
+  await deleteMissing('progress_photos', uid, ids(allPhotos));
+  await deleteMissing('exercises', uid, ids(allExercises));
+  await deleteMissing('supplements', uid, ids(allSupplements));
+}
+
+function ids(rows: { id: string }[]) {
+  return rows.map((row) => row.id);
 }
 
 async function upsert(table: string, rows: Record<string, unknown>[]) {
@@ -160,6 +175,25 @@ async function upsert(table: string, rows: Record<string, unknown>[]) {
   const { error } = await supabase.from(table).upsert(rows);
   if (error) {
     console.warn(`[pillio] cloud push ${table}:`, error.message);
+  }
+}
+
+async function deleteMissing(table: string, userId: string, localIds: string[]) {
+  const supabase = getSupabase();
+  if (!supabase) return;
+  const { data, error } = await supabase.from(table).select('id').eq('user_id', userId);
+  if (error) {
+    console.warn(`[pillio] cloud list ${table}:`, error.message);
+    return;
+  }
+  const keep = new Set(localIds);
+  const extra = (data ?? []).map((row) => String(row.id)).filter((id) => !keep.has(id));
+  for (let i = 0; i < extra.length; i += 100) {
+    const chunk = extra.slice(i, i + 100);
+    const { error: delError } = await supabase.from(table).delete().in('id', chunk);
+    if (delError) {
+      console.warn(`[pillio] cloud delete ${table}:`, delError.message);
+    }
   }
 }
 
