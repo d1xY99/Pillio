@@ -1,9 +1,12 @@
 import { DarkTheme, DefaultTheme, ThemeProvider, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { ThemedText } from '@/components/themed-text';
+import { initDatabase } from '@/db/client';
 import { useTheme, useThemeName } from '@/hooks/use-theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -11,9 +14,18 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const theme = useTheme();
   const themeName = useThemeName();
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    SplashScreen.hideAsync();
+    try {
+      initDatabase();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not open local database');
+    } finally {
+      setReady(true);
+      SplashScreen.hideAsync();
+    }
   }, []);
 
   const navigationTheme = {
@@ -28,6 +40,21 @@ export default function RootLayout() {
       notification: theme.danger,
     },
   };
+
+  if (!ready) {
+    return <View style={[styles.boot, { backgroundColor: theme.background }]} />;
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.boot, styles.error, { backgroundColor: theme.background }]}>
+        <ThemedText type="headline">Could not start Pillio</ThemedText>
+        <ThemedText type="callout" themeColor="textSecondary">
+          {error}
+        </ThemedText>
+      </View>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.background }}>
@@ -55,3 +82,14 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  boot: {
+    flex: 1,
+  },
+  error: {
+    padding: 24,
+    justifyContent: 'center',
+    gap: 8,
+  },
+});
