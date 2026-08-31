@@ -22,12 +22,32 @@ export function getDb(): AppDatabase {
   return db;
 }
 
+async function loadSqlEngine() {
+  const init = (initSqlJs as { default?: typeof initSqlJs }).default ?? initSqlJs;
+  const wasmUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/sql-wasm.wasm`;
+  const response = await fetch(wasmUrl, { credentials: 'same-origin' });
+  const wasmBinary = await response.arrayBuffer();
+  const bytes = new Uint8Array(wasmBinary);
+  if (bytes.byteLength < 4 || bytes[0] !== 0x00 || bytes[1] !== 0x61 || bytes[2] !== 0x73 || bytes[3] !== 0x6d) {
+    throw new Error('Database engine failed to load. Try a hard refresh.');
+  }
+
+  return init({
+    wasmBinary,
+    locateFile: () => wasmUrl,
+    instantiateWasm(imports: WebAssembly.Imports, onSuccess: (instance: WebAssembly.Instance) => void) {
+      void WebAssembly.instantiate(wasmBinary, imports).then((result) => {
+        onSuccess(result.instance);
+      });
+      return {};
+    },
+  });
+}
+
 export async function initDatabase() {
   if (db) return db;
 
-  const SQL = await initSqlJs({
-    locateFile: (file: string) => `/${file}`,
-  });
+  const SQL = await loadSqlEngine();
 
   const saved = await readIdb();
   sqlDb = saved ? new SQL.Database(saved) : new SQL.Database();

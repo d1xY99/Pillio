@@ -21,6 +21,11 @@
     Cross-Origin-Resource-Policy = "same-origin"
 
 [[redirects]]
+  from = "/sql-wasm.wasm"
+  to = "/sql-wasm.wasm"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
