@@ -1,18 +1,23 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { getReminderPermission, requestReminderPermission } from '@/notifications/permissions';
+import {
+  getReminderPermission,
+  requestReminderPermission,
+  sendTestReminder,
+} from '@/notifications/permissions';
 import { syncDoseReminders } from '@/notifications/sync';
 
 export default function SettingsScreen() {
   const theme = useTheme();
   const [permission, setPermission] = useState<'granted' | 'denied' | 'undetermined'>('undetermined');
+  const [testStatus, setTestStatus] = useState<string | null>(null);
   const web = Platform.OS === 'web';
 
   const refresh = useCallback(() => {
@@ -32,20 +37,28 @@ export default function SettingsScreen() {
     <ThemedView style={styles.screen}>
       {web ? (
         <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <ThemedText type="headline">Add to Home Screen</ThemedText>
+          <ThemedText type="headline">Reminders need Expo Go</ThemedText>
           <ThemedText type="callout" themeColor="textSecondary">
-            On iPhone, open this site in Safari, tap Share, then Add to Home Screen. You get a Pillio
-            icon. Data stays in this browser.
+            This web icon cannot fire iOS alerts at 10:00. Install Expo Go, run `npm run go` on your
+            computer, and scan the QR. Real reminders live there.
           </ThemedText>
         </View>
-      ) : null}
+      ) : (
+        <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <ThemedText type="headline">Expo Go</ThemedText>
+          <ThemedText type="callout" themeColor="textSecondary">
+            You are in Expo Go. Reminders use this app&apos;s iOS notifications. Allow them below,
+            then turn Reminder on for each supplement.
+          </ThemedText>
+        </View>
+      )}
 
       <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <ThemedText type="headline">Reminders</ThemedText>
         {web ? (
           <ThemedText type="callout" themeColor="textSecondary">
-            Home Screen web mode cannot fire iOS notifications at 10:00. Open Today to see overdue
-            doses. For real reminders, use Expo Go.
+            Home Screen web mode cannot fire iOS notifications at 10:00. Overdue doses still show on
+            Today.
           </ThemedText>
         ) : (
           <>
@@ -80,6 +93,24 @@ export default function SettingsScreen() {
                 </ThemedText>
               </Pressable>
             )}
+            <Button
+              label="Send test alert in 8 seconds"
+              variant="secondary"
+              onPress={() => {
+                void sendTestReminder().then((ok) => {
+                  if (!ok) {
+                    Alert.alert('Allow notifications first', 'Pillio cannot schedule alerts until Expo Go has permission.');
+                    return;
+                  }
+                  setTestStatus('Lock the phone. You should get a Pillio alert in about 8 seconds.');
+                });
+              }}
+            />
+            {testStatus ? (
+              <ThemedText type="caption" themeColor="accent">
+                {testStatus}
+              </ThemedText>
+            ) : null}
           </>
         )}
       </View>
@@ -99,7 +130,7 @@ export default function SettingsScreen() {
       </View>
 
       <ThemedText type="caption" themeColor="textTertiary" style={styles.version}>
-        Pillio 1.0.0
+        Pillio 1.0.0 · Expo Go
       </ThemedText>
     </ThemedView>
   );

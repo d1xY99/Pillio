@@ -1,45 +1,36 @@
 # Pillio
 
-Personal tracker for vitamins, peptides, supplements, and gym progress. English UI. Data stays on the device or in the browser. No account.
+Personal tracker for vitamins, peptides, supplements, and gym progress. English UI. Data stays on the device.
 
-## What it does
+## Real reminders: Expo Go (free)
 
-- **Today** — doses due today. Check them off.
-- **Stack** — vitamins, peptides, and supplements with dose, schedule, history, and an adherence heatmap.
-- **Train** — workouts, sets, last-time weights, and working weight per exercise.
-- **Progress** — body weight chart and progress photos with side-by-side compare.
+This is the path where iPhone notifications work: alert at 10:00 **only if the dose is still unchecked**.
 
-## Web on iPhone (Netlify, free)
-
-Push to GitHub, then in [Netlify](https://app.netlify.com):
-
-1. Add new site → Import an existing project → GitHub → `Pillio`.
-2. Netlify reads `netlify.toml` (build: `npx expo export --platform web`, publish: `dist`).
-3. After deploy, open the `.netlify.app` URL in **Safari**.
-4. Share → **Add to Home Screen**.
-
-You get a Pillio icon. This is a website in fullscreen, not an App Store app. iOS will **not** send a notification at 10:00. Overdue doses still show on Today.
-
-## Real reminders (Expo Go, free)
-
-1. Install [Expo Go](https://apps.apple.com/app/expo-go/id982107779).
-2. From this repo:
+1. On the iPhone, install [Expo Go](https://apps.apple.com/app/expo-go/id982107779).
+2. On the Mac, in this repo:
 
 ```sh
 npm install
-npx expo start
+npm run go
 ```
 
-3. Scan the QR code. Reminders, camera, and SQLite work on a physical iPhone.
+3. Scan the QR with the Camera app (or inside Expo Go). Tunnel mode does not require the same Wi‑Fi.
+4. In Pillio: **Allow notifications**. Then open a supplement, turn **Reminder** on, set the time.
+5. Settings → **Send test alert in 8 seconds** to confirm iOS banners work. Lock the phone and wait.
 
-## Stack
+If you deny once, enable them in iPhone **Settings → Notifications → Expo Go**.
 
-Expo SDK 57, Expo Router, TypeScript, SQLite (Drizzle), local notifications.
+The Mac must stay on while you use the app this way (Metro is serving it). Close the terminal and Expo Go cannot reload new code, but already-scheduled notifications can still fire.
+
+## Web (Netlify)
+
+https://pillioo.netlify.app is the Home Screen website. It has no iOS dose alerts. Use Expo Go for reminders.
 
 ## Scripts
 
 ```sh
-npm start
+npm run go          # Expo Go + tunnel (reminders)
+npm start           # Expo Go, same Wi‑Fi
 npm run typecheck
 npm run export:web
 ```

@@ -2,8 +2,9 @@ import { and, gte, lte } from 'drizzle-orm';
 import { useLiveQuery } from '@/db/live';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Linking, Platform, StyleSheet, View } from 'react-native';
 
+import { Button } from '@/components/button';
 import { DoseRow } from '@/components/dose-row';
 import { EmptyState } from '@/components/empty-state';
 import { FadeIn } from '@/components/fade-in';
@@ -17,6 +18,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
 import { takeDose, untakeDose } from '@/domain/logging';
+import { getReminderPermission, requestReminderPermission } from '@/notifications/permissions';
+import { syncDoseReminders } from '@/notifications/sync';
 import { doseLogs } from '@/db/schema';
 import type { DoseUnit } from '@/db/types';
 import { overallStreak } from '@/domain/adherence';
@@ -37,6 +40,7 @@ export default function TodayScreen() {
   const theme = useTheme();
   const db = getDb();
   const [nowTick, setNowTick] = useState(0);
+  const [permission, setPermission] = useState<'granted' | 'denied' | 'undetermined' | 'web'>('undetermined');
   const start = startOfLocalDay();
   const end = endOfLocalDay();
 
@@ -44,6 +48,11 @@ export default function TodayScreen() {
     useCallback(() => {
       ensureUpcomingDoses();
       setNowTick((value) => value + 1);
+      if (Platform.OS === 'web') {
+        setPermission('web');
+      } else {
+        void getReminderPermission().then(setPermission);
+      }
     }, []),
   );
 
@@ -78,6 +87,31 @@ export default function TodayScreen() {
           />
         }
       />
+
+      {Platform.OS !== 'web' && permission !== 'granted' ? (
+        <FadeIn>
+          <GlassCard glow style={styles.permission}>
+            <ThemedText type="headline">Turn on reminders</ThemedText>
+            <ThemedText type="callout" themeColor="textSecondary">
+              Expo Go can alert you at the due time only if a dose is still open. Allow notifications,
+              then enable Reminder on each supplement.
+            </ThemedText>
+            <Button
+              label={permission === 'denied' ? 'Open iOS Settings' : 'Allow notifications'}
+              onPress={() => {
+                if (permission === 'denied') {
+                  void Linking.openSettings();
+                  return;
+                }
+                void requestReminderPermission().then((granted) => {
+                  setPermission(granted ? 'granted' : 'denied');
+                  if (granted) void syncDoseReminders();
+                });
+              }}
+            />
+          </GlassCard>
+        </FadeIn>
+      ) : null}
 
       <HeroBanner
         kicker="DAILY STACK"
@@ -163,6 +197,10 @@ export default function TodayScreen() {
 }
 
 const styles = StyleSheet.create({
+  permission: {
+    marginBottom: Spacing.four,
+    gap: Spacing.two,
+  },
   summary: {
     flexDirection: 'row',
     alignItems: 'center',
