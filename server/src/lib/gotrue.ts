@@ -1,4 +1,4 @@
-import { supabaseAnonKey, supabaseUrl } from './env';
+import { supabaseAnonKey, supabaseUrlCandidates } from './env';
 
 type GotrueUser = {
   id: string;
@@ -23,13 +23,20 @@ async function gotrue<T>(path: string, init: RequestInit = {}): Promise<{ ok: bo
     headers.set('Content-Type', 'application/json');
   }
 
-  let res: Response;
-  try {
-    res = await fetch(`${supabaseUrl()}/auth/v1${path}`, { ...init, headers });
-  } catch (error) {
-    const cause = error instanceof Error ? error.message : 'fetch failed';
-    throw new Error(`Could not reach Supabase Auth (${cause})`);
+  const bases = supabaseUrlCandidates();
+  if (!bases.length) throw new Error('Supabase URL is not configured');
+
+  let res: Response | undefined;
+  let lastCause = 'fetch failed';
+  for (const base of bases) {
+    try {
+      res = await fetch(`${base}/auth/v1${path}`, { ...init, headers });
+      break;
+    } catch (error) {
+      lastCause = error instanceof Error ? error.message : 'fetch failed';
+    }
   }
+  if (!res) throw new Error(`Could not reach Supabase Auth (${lastCause})`);
 
   const body = (await res.json().catch(() => ({}))) as T & {
     error?: string;

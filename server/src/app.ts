@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
-import { isConfigured } from './lib/env';
+import { isConfigured, supabaseHost } from './lib/env';
 import { authRoutes } from './routes/auth';
 import { bodyRoutes } from './routes/body';
 import { stackRoutes } from './routes/stack';
@@ -21,7 +21,7 @@ app.use(
 );
 
 app.get('/health', (c) =>
-  c.json({ ok: true, supabase: isConfigured() }),
+  c.json({ ok: true, supabase: isConfigured(), host: supabaseHost() }),
 );
 
 app.route('/auth', authRoutes);
