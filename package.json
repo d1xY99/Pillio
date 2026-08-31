@@ -9,6 +9,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "dev": "npx --yes concurrently -k -n api,web -c cyan,magenta \"npm run api\" \"npm run web\"",
     "typecheck": "tsc --noEmit",
     "api": "tsx watch server/src/index.ts",
     "export:web": "expo export --platform web",

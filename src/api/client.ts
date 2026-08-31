@@ -46,13 +46,18 @@ export async function api<T = any>(
   let token = accessToken();
   if (init.auth !== false && token) headers.set('Authorization', `Bearer ${token}`);
 
-  const run = () =>
-    fetch(`${apiBase()}/api${path}`, {
-      ...init,
-      headers,
-    });
+  const url = `${apiBase()}/api${path}`;
+  const run = () => fetch(url, { ...init, headers });
 
-  let res = await run();
+  let res: Response;
+  try {
+    res = await run();
+  } catch {
+    const hint = apiBase()
+      ? `Cannot reach ${apiBase()}. In another terminal run: npm run api`
+      : 'API URL is missing. Set EXPO_PUBLIC_API_URL=http://localhost:8787 and run npm run api';
+    throw new Error(hint);
+  }
   if (res.status === 401 && init.auth !== false) {
     token = await refreshAccess();
     if (token) {
