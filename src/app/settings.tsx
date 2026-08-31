@@ -1,12 +1,14 @@
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { useAuth } from '@/auth/auth-context';
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { showAlert } from '@/lib/confirm';
 import {
   getReminderPermission,
   requestReminderPermission,
@@ -16,6 +18,9 @@ import { syncDoseReminders } from '@/notifications/sync';
 
 export default function SettingsScreen() {
   const theme = useTheme();
+  const router = useRouter();
+  const { user, configured, signOut } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
   const [permission, setPermission] = useState<'granted' | 'denied' | 'undetermined'>('undetermined');
   const [webStatus, setWebStatus] = useState<
     'unsupported' | 'needs-install' | 'denied' | 'granted' | 'off'
@@ -47,10 +52,47 @@ export default function SettingsScreen() {
   return (
     <ThemedView style={styles.screen}>
       <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <ThemedText type="headline">This phone is enough</ThemedText>
+        <ThemedText type="headline">Account</ThemedText>
+        {user ? (
+          <>
+            <ThemedText type="callout" themeColor="textSecondary">
+              Signed in as {user.user_metadata?.display_name ? `${user.user_metadata.display_name} · ` : ''}
+              {user.email}. Your stack is saved in the cloud. Sign out clears this phone; sign back
+              in to load it.
+            </ThemedText>
+            <Button
+              label={signingOut ? 'Signing out…' : 'Sign out'}
+              variant="secondary"
+              disabled={signingOut}
+              onPress={() => {
+                setSigningOut(true);
+                void signOut()
+                  .then(() => router.replace('/auth'))
+                  .finally(() => setSigningOut(false));
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <ThemedText type="callout" themeColor="textSecondary">
+              {configured
+                ? 'Sign in so deleting the Home Screen icon does not wipe your stack.'
+                : 'Add Supabase keys to enable cloud backup (see supabase/README.md).'}
+            </ThemedText>
+            <Button
+              label="Sign in / Create account"
+              onPress={() => router.push('/auth')}
+              disabled={!configured}
+            />
+          </>
+        )}
+      </View>
+
+      <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <ThemedText type="headline">Home Screen</ThemedText>
         <ThemedText type="callout" themeColor="textSecondary">
-          Open https://pillioo.netlify.app from the Home Screen icon. Checking off a dose does not
-          need a laptop.
+          Safari → Share → Add to Home Screen, then open Pillio from that icon so check-offs and
+          reminders run on this phone.
         </ThemedText>
       </View>
 
@@ -149,7 +191,7 @@ export default function SettingsScreen() {
               onPress={() => {
                 void sendTestReminder().then((ok) => {
                   if (!ok) {
-                    Alert.alert(
+                    showAlert(
                       'Allow notifications first',
                       'Pillio cannot schedule alerts until notifications are allowed.',
                     );
@@ -178,8 +220,8 @@ export default function SettingsScreen() {
       <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <ThemedText type="headline">Data</ThemedText>
         <ThemedText type="callout" themeColor="textSecondary">
-          Doses stay on this phone. Reminder times are copied to the server only so a missed dose can
-          ping you.
+          While signed in, this phone is a cache. The account in the cloud is the source of truth.
+          Reminder times are also copied so a missed dose can ping you.
         </ThemedText>
       </View>
 

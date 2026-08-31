@@ -3,7 +3,7 @@ import { useLiveQuery } from '@/db/live';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
 
 import { Button } from '@/components/button';
@@ -32,6 +32,7 @@ import { PHOTO_POSES, type PhotoPose } from '@/db/types';
 import { captureProgressPhoto, deletePhotoFile } from '@/domain/photos';
 import { formatDayLabel } from '@/domain/time';
 import { useTheme } from '@/hooks/use-theme';
+import { confirmAction } from '@/lib/confirm';
 
 const POSE_LABELS: Record<PhotoPose, string> = {
   front: 'Front',
@@ -211,17 +212,15 @@ export default function ProgressScreen() {
             <Pressable
               key={photo.id}
               onLongPress={() => {
-                Alert.alert('Delete photo?', 'This removes it from Pillio on this device.', [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => {
-                      deletePhotoFile(photo.localUri);
-                      deleteProgressPhoto(photo.id);
-                    },
-                  },
-                ]);
+                void confirmAction(
+                  'Delete photo?',
+                  'This removes it from Pillio on this device.',
+                  'Delete',
+                ).then((ok) => {
+                  if (!ok) return;
+                  deletePhotoFile(photo.localUri);
+                  deleteProgressPhoto(photo.id);
+                });
               }}
               style={[styles.tile, { width: tile, height: tile * 1.25 }]}>
               <Image source={{ uri: photo.localUri }} style={styles.image} contentFit="cover" />

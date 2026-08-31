@@ -110,6 +110,14 @@ function queuePersist() {
   }, 200);
 }
 
+export async function flushLocalPersist() {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  await persistNow();
+}
+
 async function persistNow() {
   if (!sqlDb || typeof indexedDB === 'undefined') return;
   const bytes = sqlDb.export();

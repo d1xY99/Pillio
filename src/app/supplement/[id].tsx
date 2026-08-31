@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { useLiveQuery } from '@/db/live';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,7 +18,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
 import { listDoseHistory } from '@/db/queries/doses';
 import { listSchedulesForSupplement } from '@/db/queries/schedules';
-import { setSupplementArchived } from '@/db/queries/supplements';
+import { deleteSupplement, setSupplementArchived } from '@/db/queries/supplements';
 import { doseLogs, supplements } from '@/db/schema';
 import type { SupplementForm, SupplementType } from '@/db/types';
 import { adherenceDays } from '@/domain/adherence';
@@ -26,6 +26,7 @@ import { ensureDosesForRange } from '@/domain/doses';
 import { draftFromSchedules, describeSchedule } from '@/domain/schedule';
 import { addLocalDays, endOfLocalDay, formatDateTime, startOfLocalDay } from '@/domain/time';
 import { useTheme } from '@/hooks/use-theme';
+import { confirmAction } from '@/lib/confirm';
 import { syncDoseReminders } from '@/notifications/sync';
 
 export default function SupplementDetailScreen() {
@@ -85,24 +86,31 @@ export default function SupplementDetailScreen() {
   }
 
   function archive() {
-    Alert.alert(
+    void confirmAction(
       item.archived ? 'Restore this item?' : 'Archive this item?',
       item.archived
         ? 'It will show up in your stack and Today again.'
         : 'It will leave Today and the active stack. History stays on the device.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: item.archived ? 'Restore' : 'Archive',
-          style: item.archived ? 'default' : 'destructive',
-          onPress: () => {
-            setSupplementArchived(item.id, !item.archived);
-            void syncDoseReminders();
-            router.back();
-          },
-        },
-      ],
-    );
+      item.archived ? 'Restore' : 'Archive',
+    ).then((ok) => {
+      if (!ok) return;
+      setSupplementArchived(item.id, !item.archived);
+      void syncDoseReminders();
+      router.back();
+    });
+  }
+
+  function remove() {
+    void confirmAction(
+      `Delete ${item.name}?`,
+      'This removes it from this phone and the cloud, including its schedule and dose history. Archive if you only want it off Today.',
+      'Delete',
+    ).then((ok) => {
+      if (!ok) return;
+      deleteSupplement(item.id);
+      void syncDoseReminders();
+      router.back();
+    });
   }
 
   return (
@@ -180,9 +188,10 @@ export default function SupplementDetailScreen() {
         />
         <Button
           label={item.archived ? 'Restore' : 'Archive'}
-          variant={item.archived ? 'primary' : 'danger'}
+          variant={item.archived ? 'primary' : 'secondary'}
           onPress={archive}
         />
+        <Button label="Delete" variant="danger" onPress={remove} />
       </View>
     </Screen>
   );
