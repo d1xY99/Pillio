@@ -3,8 +3,14 @@ import { listActiveSchedules, listSchedulesForSupplement, replaceSchedulesForSup
 import { listAllSupplements } from '@/db/queries/supplements';
 import type { DoseLog, Schedule, Supplement } from '@/db/schema';
 import type { DoseUnit } from '@/db/types';
-import { isScheduleDueOnDay, isWeeklySchedule, type ScheduleDraft } from '@/domain/schedule';
 import {
+  isScheduleDueOnDay,
+  isWeeklySchedule,
+  WEEKDAY_NAMES,
+  type ScheduleDraft,
+} from '@/domain/schedule';
+import {
+  addLocalDays,
   eachLocalDay,
   endOfLocalDay,
   startOfLocalDay,
@@ -47,7 +53,7 @@ export function isWeeklySupplement(supplementId: string): boolean {
   return listSchedulesForSupplement(supplementId).some(isWeeklySchedule);
 }
 
-export function listTodayDoses(now = Date.now(), options: { weekly?: boolean } = {}): TodayDose[] {
+export function listTodayDoses(now = Date.now()): TodayDose[] {
   const start = startOfLocalDay(now);
   const end = endOfLocalDay(now);
   const activeIds = new Set(listActiveSchedules().map((row) => row.id));
@@ -61,7 +67,7 @@ export function listTodayDoses(now = Date.now(), options: { weekly?: boolean } =
     })
     .flatMap((dose) => {
       const supplement = catalog.get(dose.supplementId);
-      if (!supplement) return [];
+      if (!supplement || supplement.archived) return [];
       return [
         {
           ...dose,
@@ -70,11 +76,34 @@ export function listTodayDoses(now = Date.now(), options: { weekly?: boolean } =
         },
       ];
     })
-    .filter((dose) => {
-      const weekly = isWeeklySupplement(dose.supplementId);
-      return options.weekly ? weekly : !weekly;
-    })
     .sort((a, b) => a.scheduledFor - b.scheduledFor || a.supplement.name.localeCompare(b.supplement.name));
+}
+
+export function listParkedWeekly(now = Date.now()): { supplement: Supplement; nextLabel: string }[] {
+  const dueToday = new Set(
+    listTodayDoses(now)
+      .filter((dose) => isWeeklySupplement(dose.supplementId))
+      .map((dose) => dose.supplementId),
+  );
+
+  return listAllSupplements()
+    .filter((item) => !item.archived && isWeeklySupplement(item.id) && !dueToday.has(item.id))
+    .map((supplement) => ({
+      supplement,
+      nextLabel: nextWeeklyDayLabel(supplement.id, now),
+    }))
+    .sort((a, b) => a.supplement.name.localeCompare(b.supplement.name));
+}
+
+function nextWeeklyDayLabel(supplementId: string, now: number): string {
+  const schedules = listSchedulesForSupplement(supplementId);
+  for (let offset = 1; offset <= 7; offset += 1) {
+    const day = addLocalDays(startOfLocalDay(now), offset);
+    if (schedules.some((schedule) => isScheduleDueOnDay(schedule, day))) {
+      return WEEKDAY_NAMES[new Date(day).getDay()];
+    }
+  }
+  return 'Later';
 }
 
 export function groupDosesByTime(doses: TodayDose[]): { time: number; items: TodayDose[] }[] {
