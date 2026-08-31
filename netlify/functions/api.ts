@@ -1,51 +1,23 @@
 import { app } from '../../server/src/app';
 
-type NetlifyEvent = {
-  httpMethod: string;
-  path: string;
-  rawUrl?: string;
-  headers: Record<string, string | undefined>;
-  body: string | null;
-  isBase64Encoded?: boolean;
-  queryStringParameters?: Record<string, string | undefined> | null;
-};
+function routedRequest(request: Request) {
+  const url = new URL(request.url);
+  let pathname = url.pathname;
 
-function requestFromEvent(event: NetlifyEvent) {
-  const url = event.rawUrl
-    ? new URL(event.rawUrl)
-    : new URL(event.path, 'https://pillioo.netlify.app');
-
-  // Function URL is /.netlify/functions/api/... or rewritten /api/...
-  let pathname = url.pathname.replace(/^\/.netlify\/functions\/api/, '') || '/';
-  if (pathname.startsWith('/api/')) pathname = pathname.slice(4) || '/';
-  url.pathname = pathname;
-
-  const headers = new Headers();
-  for (const [key, value] of Object.entries(event.headers ?? {})) {
-    if (value) headers.set(key, value);
+  if (pathname.startsWith('/.netlify/functions/api')) {
+    pathname = pathname.slice('/.netlify/functions/api'.length) || '/';
   }
+  if (pathname.startsWith('/api')) {
+    pathname = pathname.slice('/api'.length) || '/';
+  }
+  if (!pathname.startsWith('/')) pathname = `/${pathname}`;
 
-  const method = event.httpMethod.toUpperCase();
-  const body =
-    method === 'GET' || method === 'HEAD' || !event.body
-      ? undefined
-      : event.isBase64Encoded
-        ? Uint8Array.from(atob(event.body), (ch) => ch.charCodeAt(0))
-        : event.body;
-
-  return new Request(url, { method, headers, body });
+  url.pathname = pathname;
+  return new Request(url, request);
 }
 
-export async function handler(event: NetlifyEvent) {
-  const response = await app.fetch(requestFromEvent(event));
-  const body = await response.text();
-  const headers: Record<string, string> = {};
-  response.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
-  return {
-    statusCode: response.status,
-    headers,
-    body,
-  };
-}
+export default async (request: Request) => app.fetch(routedRequest(request));
+
+export const config = {
+  path: '/api/*',
+};
