@@ -1,0 +1,16 @@
+name: Dispatch dose reminders
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Netlify dispatcher
+        run: |
+          curl -fsS -X POST \
+            -H "Authorization: Bearer pillio-dispatch-2026" \
+            https://pillioo.netlify.app/.netlify/functions/dispatch

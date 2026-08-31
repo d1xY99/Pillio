@@ -17,12 +17,19 @@ import { syncDoseReminders } from '@/notifications/sync';
 export default function SettingsScreen() {
   const theme = useTheme();
   const [permission, setPermission] = useState<'granted' | 'denied' | 'undetermined'>('undetermined');
+  const [webStatus, setWebStatus] = useState<
+    'unsupported' | 'needs-install' | 'denied' | 'granted' | 'off'
+  >('off');
   const [testStatus, setTestStatus] = useState<string | null>(null);
   const web = Platform.OS === 'web';
 
   const refresh = useCallback(() => {
+    if (web) {
+      void import('@/notifications/web').then((mod) => mod.getWebReminderStatus().then(setWebStatus));
+      return;
+    }
     void getReminderPermission().then(setPermission);
-  }, []);
+  }, [web]);
 
   useFocusEffect(
     useCallback(() => {
@@ -35,36 +42,65 @@ export default function SettingsScreen() {
 
   return (
     <ThemedView style={styles.screen}>
-      {web ? (
-        <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <ThemedText type="headline">Reminders need Expo Go</ThemedText>
-          <ThemedText type="callout" themeColor="textSecondary">
-            This web icon cannot fire iOS alerts at 10:00. Install Expo Go, run `npm run go` on your
-            computer, and scan the QR. Real reminders live there.
-          </ThemedText>
-        </View>
-      ) : (
-        <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <ThemedText type="headline">Expo Go</ThemedText>
-          <ThemedText type="callout" themeColor="textSecondary">
-            You are in Expo Go. Reminders use this app&apos;s iOS notifications. Allow them below,
-            then turn Reminder on for each supplement.
-          </ThemedText>
-        </View>
-      )}
+      <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <ThemedText type="headline">This phone is enough</ThemedText>
+        <ThemedText type="callout" themeColor="textSecondary">
+          Open https://pillioo.netlify.app from the Home Screen icon. Checking off a dose does not
+          need a laptop.
+        </ThemedText>
+      </View>
 
       <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <ThemedText type="headline">Reminders</ThemedText>
         {web ? (
-          <ThemedText type="callout" themeColor="textSecondary">
-            Home Screen web mode cannot fire iOS notifications at 10:00. Overdue doses still show on
-            Today.
-          </ThemedText>
+          <>
+            <ThemedText type="callout" themeColor="textSecondary">
+              Alerts fire around the due time only if the dose is still unchecked. On iPhone you must
+              open Pillio from the Home Screen icon, then allow notifications.
+            </ThemedText>
+            <ThemedText type="captionBold" themeColor="accent">
+              Status:{' '}
+              {webStatus === 'granted'
+                ? 'On'
+                : webStatus === 'needs-install'
+                  ? 'Add to Home Screen first'
+                  : webStatus === 'denied'
+                    ? 'Blocked'
+                    : webStatus === 'unsupported'
+                      ? 'Not supported here'
+                      : 'Off'}
+            </ThemedText>
+            {webStatus === 'needs-install' ? (
+              <ThemedText type="callout" themeColor="textSecondary">
+                Safari → Share → Add to Home Screen, then open the icon and come back here.
+              </ThemedText>
+            ) : (
+              <Button
+                label={webStatus === 'granted' ? 'Resync reminders' : 'Allow notifications'}
+                onPress={() => {
+                  void import('@/notifications/web').then(({ enableWebReminders }) =>
+                    enableWebReminders().then((ok) => {
+                    setWebStatus(ok ? 'granted' : 'denied');
+                    setTestStatus(
+                      ok
+                        ? 'Alerts are on. Keep Reminder enabled on each supplement.'
+                        : 'Could not enable alerts. Open Pillio from the Home Screen icon and try again.',
+                    );
+                    }),
+                  );
+                }}
+              />
+            )}
+            {testStatus ? (
+              <ThemedText type="caption" themeColor="accent">
+                {testStatus}
+              </ThemedText>
+            ) : null}
+          </>
         ) : (
           <>
             <ThemedText type="callout" themeColor="textSecondary">
-              Notifications fire at the due time only if a dose is still unchecked. Checking it off
-              early cancels that reminder.
+              Notifications fire at the due time only if a dose is still unchecked.
             </ThemedText>
             <ThemedText type="captionBold" themeColor="accent">
               Status: {permissionLabel}
@@ -99,7 +135,10 @@ export default function SettingsScreen() {
               onPress={() => {
                 void sendTestReminder().then((ok) => {
                   if (!ok) {
-                    Alert.alert('Allow notifications first', 'Pillio cannot schedule alerts until Expo Go has permission.');
+                    Alert.alert(
+                      'Allow notifications first',
+                      'Pillio cannot schedule alerts until notifications are allowed.',
+                    );
                     return;
                   }
                   setTestStatus('Lock the phone. You should get a Pillio alert in about 8 seconds.');
@@ -125,12 +164,13 @@ export default function SettingsScreen() {
       <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <ThemedText type="headline">Data</ThemedText>
         <ThemedText type="callout" themeColor="textSecondary">
-          Everything stays on this device. No account or cloud sync in v1.
+          Doses stay on this phone. Reminder times are copied to the server only so a missed dose can
+          ping you.
         </ThemedText>
       </View>
 
       <ThemedText type="caption" themeColor="textTertiary" style={styles.version}>
-        Pillio 1.0.0 · Expo Go
+        Pillio 1.0.0
       </ThemedText>
     </ThemedView>
   );

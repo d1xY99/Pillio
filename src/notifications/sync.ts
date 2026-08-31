@@ -25,7 +25,11 @@ export async function cancelDoseNotification(doseId: string) {
 }
 
 export async function syncDoseReminders() {
-  if (Platform.OS === 'web') return;
+  if (Platform.OS === 'web') {
+    const { syncWebReminders } = await import('@/notifications/web');
+    await syncWebReminders();
+    return;
+  }
 
   const permission = await getReminderPermission();
   if (permission !== 'granted') {

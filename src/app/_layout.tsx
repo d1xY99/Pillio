@@ -2,7 +2,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { AppState, StyleSheet, View } from 'react-native';
+import { AppState, Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { ThemedText } from '@/components/themed-text';
@@ -27,6 +27,10 @@ export default function RootLayout() {
       try {
         await initDatabase();
         if (cancelled) return;
+        if (Platform.OS === 'web') {
+          const { registerWebServiceWorker } = await import('@/notifications/web');
+          await registerWebServiceWorker();
+        }
         ensureUpcomingDoses();
         void syncDoseReminders();
       } catch (cause) {

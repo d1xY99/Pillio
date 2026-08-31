@@ -5,6 +5,10 @@
 [build.environment]
   NODE_VERSION = "22"
 
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
 [[headers]]
   for = "/*"
   [headers.values]
@@ -23,6 +27,11 @@
 [[redirects]]
   from = "/sql-wasm.wasm"
   to = "/sql-wasm.wasm"
+  status = 200
+
+[[redirects]]
+  from = "/sw.js"
+  to = "/sw.js"
   status = 200
 
 [[redirects]]

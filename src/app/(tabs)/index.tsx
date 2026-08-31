@@ -88,7 +88,18 @@ export default function TodayScreen() {
         }
       />
 
-      {Platform.OS !== 'web' && permission !== 'granted' ? (
+      {Platform.OS === 'web' ? (
+        <FadeIn>
+          <GlassCard style={styles.permission}>
+            <ThemedText type="headline">No laptop needed</ThemedText>
+            <ThemedText type="callout" themeColor="textSecondary">
+              Add this site to your Home Screen and use it from the icon. Check off doses anytime —
+              the Mac can be off. Enable alerts in Settings after you open the icon.
+            </ThemedText>
+            <Button label="Open settings" onPress={() => router.push('/settings')} />
+          </GlassCard>
+        </FadeIn>
+      ) : permission !== 'granted' ? (
         <FadeIn>
           <GlassCard glow style={styles.permission}>
             <ThemedText type="headline">Turn on reminders</ThemedText>
