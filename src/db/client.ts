@@ -27,3 +27,7 @@ export async function initDatabase() {
   notifyDbChanged();
   return db;
 }
+
+export async function flushLocalPersist() {
+  // expo-sqlite writes are immediate
+}

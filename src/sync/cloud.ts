@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 
-import { getDb } from '@/db/client';
+import { flushLocalPersist, getDb } from '@/db/client';
+import { notifyDbChanged } from '@/db/events';
 import {
   bodyWeights,
   doseLogs,
@@ -12,33 +13,29 @@ import {
   workoutSets,
 } from '@/db/schema';
 import { getSupabase } from '@/lib/supabase';
-import { notifyDbChanged } from '@/db/events';
 
 let timer: ReturnType<typeof setTimeout> | null = null;
+let syncing = false;
+let clearing: Promise<void> | null = null;
 
-export function schedulePush() {
-  if (timer) clearTimeout(timer);
-  timer = setTimeout(() => {
-    void pushToCloud();
-  }, 900);
+export function cancelScheduledPush() {
+  if (timer) {
+    clearTimeout(timer);
+    timer = null;
+  }
 }
 
-export async function pullFromCloud() {
-  const supabase = getSupabase();
-  if (!supabase) return;
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
+export function schedulePush() {
+  if (syncing) return;
+  if (timer) clearTimeout(timer);
+  timer = setTimeout(() => {
+    timer = null;
+    void pushToCloud();
+  }, 300);
+}
 
+function wipeLocalUserRows() {
   const db = getDb();
-  const remoteSupplements = await supabase.from('supplements').select('*').eq('user_id', user.id);
-  if (remoteSupplements.error) return;
-  if ((remoteSupplements.data?.length ?? 0) === 0) {
-    await pushToCloud();
-    return;
-  }
-
   db.delete(doseLogs).run();
   db.delete(schedules).run();
   db.delete(supplements).run();
@@ -47,48 +44,95 @@ export async function pullFromCloud() {
   db.delete(bodyWeights).run();
   db.delete(progressPhotos).run();
   db.delete(exercises).where(eq(exercises.isPreset, false)).run();
+}
 
-  const mapRows: Record<string, unknown[] | null> = {
-    supplements: (await supabase.from('supplements').select('*').eq('user_id', user.id)).data,
-    schedules: (await supabase.from('schedules').select('*').eq('user_id', user.id)).data,
-    dose_logs: (await supabase.from('dose_logs').select('*').eq('user_id', user.id)).data,
-    exercises: (await supabase.from('exercises').select('*').eq('user_id', user.id)).data,
-    workout_sessions: (await supabase.from('workout_sessions').select('*').eq('user_id', user.id)).data,
-    workout_sets: (await supabase.from('workout_sets').select('*').eq('user_id', user.id)).data,
-    body_weights: (await supabase.from('body_weights').select('*').eq('user_id', user.id)).data,
-    progress_photos: (await supabase.from('progress_photos').select('*').eq('user_id', user.id)).data,
-  };
+export async function clearLocalUserData() {
+  if (clearing) return clearing;
+  clearing = (async () => {
+    cancelScheduledPush();
+    syncing = true;
+    try {
+      wipeLocalUserRows();
+      await flushLocalPersist();
+    } finally {
+      syncing = false;
+    }
+    notifyDbChanged();
+  })();
+  try {
+    await clearing;
+  } finally {
+    clearing = null;
+  }
+}
 
-  insertMapped(mapRows.supplements, (row) =>
-    db.insert(supplements).values(fromSupplement(row)).run(),
-  );
-  insertMapped(mapRows.schedules, (row) => db.insert(schedules).values(fromSchedule(row)).run());
-  insertMapped(mapRows.dose_logs, (row) => db.insert(doseLogs).values(fromDose(row)).run());
-  insertMapped(mapRows.exercises, (row) => {
-    if (row.is_preset) return;
-    db.insert(exercises).values(fromExercise(row)).run();
-  });
-  insertMapped(mapRows.workout_sessions, (row) =>
-    db.insert(workoutSessions).values(fromSession(row)).run(),
-  );
-  insertMapped(mapRows.workout_sets, (row) => db.insert(workoutSets).values(fromSet(row)).run());
-  insertMapped(mapRows.body_weights, (row) => db.insert(bodyWeights).values(fromWeight(row)).run());
-  insertMapped(mapRows.progress_photos, (row) =>
-    db.insert(progressPhotos).values(fromPhoto(row)).run(),
-  );
+async function sessionUserId() {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user.id ?? null;
+}
 
+export async function pullFromCloud() {
+  const supabase = getSupabase();
+  if (!supabase) return;
+  const userId = await sessionUserId();
+  if (!userId) return;
+
+  const db = getDb();
+  const remoteSupplements = await supabase.from('supplements').select('*').eq('user_id', userId);
+  if (remoteSupplements.error) return;
+  if ((remoteSupplements.data?.length ?? 0) === 0) {
+    await pushToCloud();
+    return;
+  }
+
+  syncing = true;
+  try {
+    wipeLocalUserRows();
+
+    const mapRows: Record<string, unknown[] | null> = {
+      supplements: (await supabase.from('supplements').select('*').eq('user_id', userId)).data,
+      schedules: (await supabase.from('schedules').select('*').eq('user_id', userId)).data,
+      dose_logs: (await supabase.from('dose_logs').select('*').eq('user_id', userId)).data,
+      exercises: (await supabase.from('exercises').select('*').eq('user_id', userId)).data,
+      workout_sessions: (await supabase.from('workout_sessions').select('*').eq('user_id', userId)).data,
+      workout_sets: (await supabase.from('workout_sets').select('*').eq('user_id', userId)).data,
+      body_weights: (await supabase.from('body_weights').select('*').eq('user_id', userId)).data,
+      progress_photos: (await supabase.from('progress_photos').select('*').eq('user_id', userId)).data,
+    };
+
+    insertMapped(mapRows.supplements, (row) =>
+      db.insert(supplements).values(fromSupplement(row)).run(),
+    );
+    insertMapped(mapRows.schedules, (row) => db.insert(schedules).values(fromSchedule(row)).run());
+    insertMapped(mapRows.dose_logs, (row) => db.insert(doseLogs).values(fromDose(row)).run());
+    insertMapped(mapRows.exercises, (row) => {
+      if (row.is_preset) return;
+      db.insert(exercises).values(fromExercise(row)).run();
+    });
+    insertMapped(mapRows.workout_sessions, (row) =>
+      db.insert(workoutSessions).values(fromSession(row)).run(),
+    );
+    insertMapped(mapRows.workout_sets, (row) => db.insert(workoutSets).values(fromSet(row)).run());
+    insertMapped(mapRows.body_weights, (row) => db.insert(bodyWeights).values(fromWeight(row)).run());
+    insertMapped(mapRows.progress_photos, (row) =>
+      db.insert(progressPhotos).values(fromPhoto(row)).run(),
+    );
+  } finally {
+    syncing = false;
+  }
+
+  await flushLocalPersist();
   notifyDbChanged();
 }
 
 export async function pushToCloud() {
   const supabase = getSupabase();
   if (!supabase) return;
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
+  const uid = await sessionUserId();
+  if (!uid) return;
   const db = getDb();
-  const uid = user.id;
 
   const allSupplements = db.select().from(supplements).all();
   const allSchedules = db.select().from(schedules).all();
@@ -99,30 +143,36 @@ export async function pushToCloud() {
   const allWeights = db.select().from(bodyWeights).all();
   const allPhotos = db.select().from(progressPhotos).all();
 
-  if (allSupplements.length) {
-    await supabase.from('supplements').upsert(allSupplements.map((row) => toSupplement(row, uid)));
+  await upsert('supplements', allSupplements.map((row) => toSupplement(row, uid)));
+  await upsert('schedules', allSchedules.map((row) => toSchedule(row, uid)));
+  await upsert('dose_logs', allDoses.map((row) => toDose(row, uid)));
+  await upsert('exercises', allExercises.map((row) => toExercise(row, uid)));
+  await upsert('workout_sessions', allSessions.map((row) => toSession(row, uid)));
+  await upsert('workout_sets', allSets.map((row) => toSet(row, uid)));
+  await upsert('body_weights', allWeights.map((row) => toWeight(row, uid)));
+  await upsert('progress_photos', allPhotos.map((row) => toPhoto(row, uid)));
+}
+
+async function upsert(table: string, rows: Record<string, unknown>[]) {
+  if (!rows.length) return;
+  const supabase = getSupabase();
+  if (!supabase) return;
+  const { error } = await supabase.from(table).upsert(rows);
+  if (error) {
+    console.warn(`[pillio] cloud push ${table}:`, error.message);
   }
-  if (allSchedules.length) {
-    await supabase.from('schedules').upsert(allSchedules.map((row) => toSchedule(row, uid)));
-  }
-  if (allDoses.length) {
-    await supabase.from('dose_logs').upsert(allDoses.map((row) => toDose(row, uid)));
-  }
-  if (allExercises.length) {
-    await supabase.from('exercises').upsert(allExercises.map((row) => toExercise(row, uid)));
-  }
-  if (allSessions.length) {
-    await supabase.from('workout_sessions').upsert(allSessions.map((row) => toSession(row, uid)));
-  }
-  if (allSets.length) {
-    await supabase.from('workout_sets').upsert(allSets.map((row) => toSet(row, uid)));
-  }
-  if (allWeights.length) {
-    await supabase.from('body_weights').upsert(allWeights.map((row) => toWeight(row, uid)));
-  }
-  if (allPhotos.length) {
-    await supabase.from('progress_photos').upsert(allPhotos.map((row) => toPhoto(row, uid)));
-  }
+}
+
+function flushPushNow() {
+  cancelScheduledPush();
+  void pushToCloud();
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushPushNow();
+  });
+  window.addEventListener('pagehide', flushPushNow);
 }
 
 function insertMapped(rows: unknown[] | null | undefined, write: (row: any) => void) {

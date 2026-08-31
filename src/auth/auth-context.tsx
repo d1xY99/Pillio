@@ -2,7 +2,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
-import { pullFromCloud, pushToCloud } from '@/sync/cloud';
+import { cancelScheduledPush, clearLocalUserData, pullFromCloud, pushToCloud } from '@/sync/cloud';
 
 type AuthContextValue = {
   configured: boolean;
@@ -25,15 +25,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = getSupabase();
     if (!supabase) return;
 
-    supabase.auth.getSession().then(({ data }) => {
+    void supabase.auth.getSession().then(({ data }) => {
       setSession(data.session ?? null);
       setLoading(false);
-      if (data.session) void pullFromCloud().then(() => pushToCloud());
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+    let hadSession = false;
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next);
-      if (next) void pullFromCloud().then(() => pushToCloud());
+      if (next) hadSession = true;
+      if (event === 'INITIAL_SESSION') setLoading(false);
+      // Defer so we never call auth APIs while this callback holds the lock.
+      setTimeout(() => {
+        if (event === 'SIGNED_OUT') {
+          if (hadSession) void clearLocalUserData();
+          return;
+        }
+        if (next && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+          void pullFromCloud().then(() => pushToCloud());
+        }
+      }, 0);
     });
 
     return () => {
@@ -76,7 +88,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null;
       },
       signOut: async () => {
+        cancelScheduledPush();
+        try {
+          await pushToCloud();
+        } catch {
+          // still leave this phone even if the last backup fails
+        }
         await getSupabase()?.auth.signOut();
+        await clearLocalUserData();
       },
     }),
     [configured, session, loading],

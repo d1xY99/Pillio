@@ -19,6 +19,7 @@ export default function SettingsScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { user, configured, signOut } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
   const [permission, setPermission] = useState<'granted' | 'denied' | 'undetermined'>('undetermined');
   const [webStatus, setWebStatus] = useState<
     'unsupported' | 'needs-install' | 'denied' | 'granted' | 'off'
@@ -55,9 +56,18 @@ export default function SettingsScreen() {
           <>
             <ThemedText type="callout" themeColor="textSecondary">
               Signed in as {user.user_metadata?.display_name ? `${user.user_metadata.display_name} · ` : ''}
-              {user.email}. Your stack is saved in the cloud.
+              {user.email}. Your stack is saved in the cloud. Sign out clears this phone; sign back
+              in to load it.
             </ThemedText>
-            <Button label="Sign out" variant="secondary" onPress={() => void signOut()} />
+            <Button
+              label={signingOut ? 'Signing out…' : 'Sign out'}
+              variant="secondary"
+              disabled={signingOut}
+              onPress={() => {
+                setSigningOut(true);
+                void signOut().finally(() => setSigningOut(false));
+              }}
+            />
           </>
         ) : (
           <>
@@ -207,8 +217,8 @@ export default function SettingsScreen() {
       <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <ThemedText type="headline">Data</ThemedText>
         <ThemedText type="callout" themeColor="textSecondary">
-          Doses stay on this phone. Reminder times are copied to the server only so a missed dose can
-          ping you.
+          While signed in, this phone is a cache. The account in the cloud is the source of truth.
+          Reminder times are also copied so a missed dose can ping you.
         </ThemedText>
       </View>
 
