@@ -9,6 +9,7 @@ import {
   requestPasswordReset,
   updatePassword,
 } from '../lib/gotrue';
+import { clearRefreshCookie, readRefreshCookie, writeRefreshCookie } from '../lib/session-cookie';
 import { userClient } from '../lib/supabase';
 
 export const authRoutes = new Hono<AuthEnv>();
@@ -29,6 +30,7 @@ authRoutes.post('/sign-up', async (c) => {
       email: result.session.user.email,
       display_name: name,
     });
+    writeRefreshCookie(c, result.session.refresh_token);
     return c.json({ session: result.session, user: publicUser(result.session.user, name) });
   }
 
@@ -44,15 +46,56 @@ authRoutes.post('/sign-in', async (c) => {
   const result = await passwordSignIn(email, password);
   if ('error' in result && result.error) return c.json({ error: result.error }, 400);
   if (!result.session) return c.json({ error: 'Could not sign in' }, 400);
+  writeRefreshCookie(c, result.session.refresh_token);
   return c.json({ session: result.session, user: publicUser(result.session.user) });
 });
 
 authRoutes.post('/refresh', async (c) => {
-  const body = await c.req.json<{ refreshToken?: string }>();
-  if (!body.refreshToken) return c.json({ error: 'Missing refresh token' }, 400);
-  const result = await refreshSession(body.refreshToken);
-  if ('error' in result && result.error) return c.json({ error: result.error }, 401);
-  if (!result.session) return c.json({ error: 'Could not refresh' }, 401);
+  const body = await c.req.json<{ refreshToken?: string }>().catch(() => ({} as { refreshToken?: string }));
+  const refreshToken = body.refreshToken || readRefreshCookie(c);
+  if (!refreshToken) return c.json({ error: 'Missing refresh token' }, 401);
+  const result = await refreshSession(refreshToken);
+  if ('error' in result && result.error) {
+    clearRefreshCookie(c);
+    return c.json({ error: result.error }, 401);
+  }
+  if (!result.session) {
+    clearRefreshCookie(c);
+    return c.json({ error: 'Could not refresh' }, 401);
+  }
+  writeRefreshCookie(c, result.session.refresh_token);
+  return c.json({ session: result.session, user: publicUser(result.session.user) });
+});
+
+authRoutes.post('/session', async (c) => {
+  const header = c.req.header('Authorization') ?? '';
+  const access = header.startsWith('Bearer ') ? header.slice(7) : '';
+  const body = await c.req.json<{ refreshToken?: string }>().catch(() => ({} as { refreshToken?: string }));
+  const refreshToken = body.refreshToken || readRefreshCookie(c);
+
+  if (access) {
+    const user = await getAuthUser(access);
+    if (user) {
+      if (refreshToken) writeRefreshCookie(c, refreshToken);
+      const { data: profile } = await userClient(access)
+        .from('profiles')
+        .select('display_name')
+        .eq('id', user.id)
+        .maybeSingle();
+      return c.json({ user: publicUser(user, (profile?.display_name as string | undefined) ?? '') });
+    }
+  }
+  if (!refreshToken) return c.json({ error: 'Signed out' }, 401);
+  const result = await refreshSession(refreshToken);
+  if ('error' in result && result.error) {
+    clearRefreshCookie(c);
+    return c.json({ error: 'Signed out' }, 401);
+  }
+  if (!result.session) {
+    clearRefreshCookie(c);
+    return c.json({ error: 'Signed out' }, 401);
+  }
+  writeRefreshCookie(c, result.session.refresh_token);
   return c.json({ session: result.session, user: publicUser(result.session.user) });
 });
 
@@ -84,7 +127,8 @@ authRoutes.post('/change-password', requireUser, async (c) => {
   return c.json({ ok: true });
 });
 
-authRoutes.post('/sign-out', requireUser, async (c) => {
+authRoutes.post('/sign-out', async (c) => {
+  clearRefreshCookie(c);
   return c.json({ ok: true });
 });
 

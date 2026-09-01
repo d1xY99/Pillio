@@ -1,4 +1,4 @@
-import { accessToken, refreshToken, writeSession, type ApiSession } from './session';
+import { accessToken, readSession, refreshToken, writeSession, type ApiSession } from './session';
 
 export function apiBase() {
   if (typeof window !== 'undefined') {
@@ -29,18 +29,26 @@ async function parse(res: Response) {
 async function refreshAccess(): Promise<string | null> {
   const token = refreshToken();
   if (!token) return null;
-  const res = await fetch(`${apiBase()}/api/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken: token }),
-  });
-  const body = await parse(res);
-  if (!res.ok || !body.session) {
-    writeSession(null);
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase()}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ refreshToken: token }),
+    });
+  } catch {
     return null;
   }
-  writeSession(body.session as ApiSession);
-  return body.session.access_token as string;
+  const body = await parse(res);
+  if (!res.ok || !body.session) {
+    if (res.status === 401) writeSession(null);
+    return null;
+  }
+  const next = body.session as ApiSession;
+  const previous = readSession();
+  writeSession({ ...next, user: next.user ?? previous?.user });
+  return next.access_token;
 }
 
 export async function api<T = any>(
@@ -54,12 +62,15 @@ export async function api<T = any>(
     path === '/auth/sign-in' ||
     path === '/auth/sign-up' ||
     path === '/auth/forgot-password' ||
-    path === '/auth/refresh';
+    path === '/auth/refresh' ||
+    path === '/auth/session' ||
+    path === '/auth/sign-out';
   const skipAuth = init.auth === false || publicAuth;
   if (!skipAuth && token) headers.set('Authorization', `Bearer ${token}`);
+  if (path === '/auth/session' && token) headers.set('Authorization', `Bearer ${token}`);
 
   const url = `${apiBase()}/api${path}`;
-  const run = () => fetch(url, { ...init, headers });
+  const run = () => fetch(url, { ...init, headers, credentials: 'include' });
 
   let res: Response;
   try {

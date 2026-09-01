@@ -51,19 +51,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const saved = readSession();
-    if (!saved?.access_token) {
-      setLoading(false);
-      return;
-    }
-    setSession(saved);
-    setHydrating(true);
+    if (saved?.user) setUser(saved.user);
+    if (saved) setSession(saved);
+
     void (async () => {
       try {
-        const me = await apiGet<{ user: ApiUser }>('/auth/me');
-        setUser(me.user);
+        const data = await apiPost<{ session?: ApiSession; user: ApiUser }>('/auth/session', {
+          refreshToken: saved?.refresh_token,
+        });
+        if (data.session) {
+          writeSession({ ...data.session, user: data.user });
+          setSession({ ...data.session, user: data.user });
+        }
+        setUser(data.user);
         setLoading(false);
-        await hydrateFromCloud(me.user.id);
+        await hydrateFromCloud(data.user.id);
       } catch {
+        if (saved?.user && saved.refresh_token) {
+          setUser(saved.user);
+          setSession(saved);
+          setLoading(false);
+          setHydrating(false);
+          return;
+        }
         writeSession(null);
         setSession(null);
         setUser(null);
@@ -86,8 +96,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email,
             password,
           });
-          writeSession(data.session);
-          setSession(data.session);
+          writeSession({ ...data.session, user: data.user });
+          setSession({ ...data.session, user: data.user });
           setUser(data.user);
           await hydrateFromCloud(data.user.id);
           return null;
@@ -105,8 +115,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (data.needsConfirmation || !data.session || !data.user) {
             return 'Check your email to confirm the account, then sign in.';
           }
-          writeSession(data.session);
-          setSession(data.session);
+          writeSession({ ...data.session, user: data.user });
+          setSession({ ...data.session, user: data.user });
           setUser(data.user);
           await hydrateFromCloud(data.user.id);
           return null;

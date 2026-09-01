@@ -13,7 +13,8 @@ export const app = new Hono();
 app.use(
   '*',
   cors({
-    origin: '*',
+    origin: (origin) => origin || 'https://pillioo.netlify.app',
+    credentials: true,
     allowHeaders: ['Authorization', 'Content-Type'],
     allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     maxAge: 86400,
