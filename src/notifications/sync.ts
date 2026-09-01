@@ -6,10 +6,12 @@ import { getSupplement } from '@/db/queries/supplements';
 import { formatDose } from '@/constants/catalog';
 import { listDosesBetween } from '@/db/queries/doses';
 import { ensureUpcomingDoses, listTodayDoses } from '@/domain/doses';
+import { listOpenHabitReminders, listTodayHabits } from '@/domain/habits';
 import { addLocalDays, endOfLocalDay, startOfLocalDay } from '@/domain/time';
 import { ensureAndroidChannel, getReminderPermission } from '@/notifications/permissions';
 
 const PREFIX = 'dose-';
+const HABIT_PREFIX = 'habit-';
 
 function notificationId(doseId: string) {
   return `${PREFIX}${doseId}`;
@@ -69,11 +71,21 @@ export async function syncDoseReminders() {
     });
   }
 
+  for (const reminder of listOpenHabitReminders(now)) {
+    if (reminder.at < from) continue;
+    wanted.set(reminder.id, {
+      doseId: reminder.id,
+      date: reminder.at,
+      title: reminder.title,
+      body: reminder.body,
+    });
+  }
+
   const pending = await Notifications.getAllScheduledNotificationsAsync();
   const pendingIds = new Set(pending.map((item) => item.identifier));
 
   for (const item of pending) {
-    if (!item.identifier.startsWith(PREFIX)) continue;
+    if (!item.identifier.startsWith(PREFIX) && !item.identifier.startsWith(HABIT_PREFIX)) continue;
     if (!wanted.has(item.identifier)) {
       await Notifications.cancelScheduledNotificationAsync(item.identifier);
     }
@@ -97,8 +109,9 @@ export async function syncDoseReminders() {
     });
   }
 
-  const remaining = listTodayDoses().filter((dose) => !dose.takenAt && !dose.skipped).length;
-  await Notifications.setBadgeCountAsync(remaining);
+  const remainingDoses = listTodayDoses().filter((dose) => !dose.takenAt && !dose.skipped).length;
+  const remainingHabits = listTodayHabits().filter((item) => !item.complete).length;
+  await Notifications.setBadgeCountAsync(remainingDoses + remainingHabits);
 }
 
 export async function onDoseTaken(doseId: string) {

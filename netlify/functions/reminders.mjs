@@ -41,7 +41,7 @@ export default async (request) => {
         subscription,
         {
           title: 'Pillio',
-          body: 'Reminders are on. You will get this if a dose is still open at its time.',
+          body: 'Reminders are on. You will get this if a dose or habit is still open at its time.',
         },
         ntfyTopic,
       );

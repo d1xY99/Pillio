@@ -1,6 +1,7 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,12 +10,28 @@ import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
+import { WebTimeInput } from '@/components/web-time-input';
 import { HABIT_CATEGORIES, HABIT_COLORS, HABIT_EMOJIS, habitCategoryArt } from '@/constants/habits';
 import { Radius, Spacing } from '@/constants/theme';
 import { notifyDbChanged } from '@/db/events';
 import { createHabit, getHabit, updateHabit } from '@/db/queries/habits';
 import { ensureHabitLogs } from '@/domain/habits';
+import { dateToMinutes, formatTimeMinutes, minutesToDate } from '@/domain/time';
 import { useTheme } from '@/hooks/use-theme';
+import { requestReminderPermission } from '@/notifications/permissions';
+
+function toInputTime(minutes: number): string {
+  const hours = Math.floor(minutes / 60)
+    .toString()
+    .padStart(2, '0');
+  const mins = (minutes % 60).toString().padStart(2, '0');
+  return `${hours}:${mins}`;
+}
+
+function fromInputTime(value: string): number {
+  const [hours, minutes] = value.split(':').map(Number);
+  return (hours || 0) * 60 + (minutes || 0);
+}
 
 const WEEKDAYS = [
   { bit: 1 << 1, label: 'M' },
@@ -40,6 +57,9 @@ export default function HabitFormScreen() {
   const [frequency, setFrequency] = useState(existing?.frequency ?? 'daily');
   const [weekdaysMask, setWeekdaysMask] = useState(existing?.weekdaysMask ?? 0b0111110);
   const [timesPerDay, setTimesPerDay] = useState(existing?.timesPerDay ?? 1);
+  const [reminderEnabled, setReminderEnabled] = useState(existing?.reminderEnabled !== false);
+  const [reminderMinutes, setReminderMinutes] = useState(existing?.reminderMinutes ?? 9 * 60);
+  const [editingTime, setEditingTime] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -60,6 +80,8 @@ export default function HabitFormScreen() {
       frequency,
       weekdaysMask: frequency === 'weekly' ? weekdaysMask : null,
       timesPerDay,
+      reminderEnabled,
+      reminderMinutes,
     };
     if (existing) updateHabit(existing.id, input);
     else createHabit(input);
@@ -208,6 +230,67 @@ export default function HabitFormScreen() {
           })}
         </View>
 
+        <View style={styles.reminder}>
+          <View style={styles.reminderCopy}>
+            <ThemedText type="body">Reminder</ThemedText>
+            <ThemedText type="caption" themeColor="textSecondary">
+              Ping at this time if still open. Same ntfy topic as doses.
+            </ThemedText>
+          </View>
+          <Switch
+            value={reminderEnabled}
+            onValueChange={(next) => {
+              setReminderEnabled(next);
+              if (next) void requestReminderPermission();
+            }}
+            trackColor={{ false: theme.border, true: theme.accent }}
+            thumbColor="#F6FAF8"
+          />
+        </View>
+        {reminderEnabled ? (
+          <View style={styles.timeBlock}>
+            {Platform.OS === 'web' ? (
+              <WebTimeInput
+                value={toInputTime(reminderMinutes)}
+                color={theme.text}
+                background={theme.surface}
+                border={theme.border}
+                onChange={(time) => setReminderMinutes(fromInputTime(time))}
+              />
+            ) : (
+              <>
+                <Pressable
+                  onPress={() => setEditingTime(true)}
+                  style={[styles.timeChip, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                  <ThemedText type="callout">{formatTimeMinutes(reminderMinutes)}</ThemedText>
+                </Pressable>
+                {editingTime ? (
+                  <DateTimePicker
+                    value={minutesToDate(reminderMinutes)}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(_, date) => {
+                      if (!date) {
+                        if (Platform.OS === 'android') setEditingTime(false);
+                        return;
+                      }
+                      setReminderMinutes(dateToMinutes(date));
+                      if (Platform.OS === 'android') setEditingTime(false);
+                    }}
+                  />
+                ) : null}
+                {editingTime && Platform.OS === 'ios' ? (
+                  <Pressable onPress={() => setEditingTime(false)}>
+                    <ThemedText type="callout" themeColor="accent">
+                      Done
+                    </ThemedText>
+                  </Pressable>
+                ) : null}
+              </>
+            )}
+          </View>
+        ) : null}
+
         <TextField label="Notes" value={notes} onChangeText={setNotes} placeholder="Optional" multiline />
         {error ? (
           <ThemedText type="callout" themeColor="danger">
@@ -281,4 +364,25 @@ const styles = StyleSheet.create({
   },
   catLabel: { color: '#F6FAF8' },
   catKicker: { color: 'rgba(244,247,245,0.65)' },
+  reminder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    marginBottom: Spacing.three,
+  },
+  reminderCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  timeBlock: {
+    marginBottom: Spacing.three,
+    gap: 8,
+  },
+  timeChip: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
 });

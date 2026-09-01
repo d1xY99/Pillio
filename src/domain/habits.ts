@@ -1,6 +1,6 @@
 import { listHabitLogsOnDay, listHabits, markHabitLog, upsertHabitLog } from '@/db/queries/habits';
 import type { Habit, HabitLog } from '@/db/schema';
-import { addLocalDays, endOfLocalDay, startOfLocalDay } from '@/domain/time';
+import { addLocalDays, eachLocalDay, endOfLocalDay, startOfLocalDay } from '@/domain/time';
 
 export type TodayHabit = {
   habit: Habit;
@@ -129,4 +129,41 @@ export function overallHabitStreak() {
     break;
   }
   return streak;
+}
+
+export type HabitReminder = {
+  id: string;
+  at: number;
+  title: string;
+  body: string;
+};
+
+export function listOpenHabitReminders(now = Date.now()): HabitReminder[] {
+  try {
+    ensureHabitLogs(7);
+  } catch {
+    // still schedule from whatever logs exist
+  }
+  const from = startOfLocalDay(now);
+  const to = addLocalDays(from, 7);
+  const reminders: HabitReminder[] = [];
+
+  for (const dayStart of eachLocalDay(from, to)) {
+    for (const habit of listHabits(false)) {
+      if (habit.reminderEnabled === false) continue;
+      if (!isHabitDueOnDay(habit, dayStart)) continue;
+      const logs = listHabitLogsOnDay(dayStart, endOfLocalDay(dayStart)).filter((log) => log.habitId === habit.id);
+      const total = Math.max(logs.length, habit.timesPerDay);
+      const done = logs.filter((log) => log.takenAt).length;
+      if (total > 0 && done >= total) continue;
+      const minutes = Number.isFinite(habit.reminderMinutes) ? Number(habit.reminderMinutes) : 9 * 60;
+      reminders.push({
+        id: `habit-${habit.id}-${dayStart}`,
+        at: dayStart + minutes * 60 * 1000,
+        title: `${habit.emoji} ${habit.name}`,
+        body: done > 0 ? `${done}/${total} still open.` : 'Still open today.',
+      });
+    }
+  }
+  return reminders;
 }

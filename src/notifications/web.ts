@@ -3,6 +3,7 @@ import { listDosesBetween } from '@/db/queries/doses';
 import { getSchedule } from '@/db/queries/schedules';
 import { getSupplement } from '@/db/queries/supplements';
 import { ensureUpcomingDoses } from '@/domain/doses';
+import { listOpenHabitReminders } from '@/domain/habits';
 import { addLocalDays, endOfLocalDay, startOfLocalDay } from '@/domain/time';
 import { VAPID_PUBLIC_KEY } from '@/notifications/vapid';
 
@@ -130,6 +131,9 @@ function upcomingDoses() {
       title: supplement.name,
       body: `${formatDose(dose.amount, dose.unit)} is still unchecked.`,
     });
+  }
+  for (const reminder of listOpenHabitReminders(now)) {
+    doses.push(reminder);
   }
   return doses;
 }
