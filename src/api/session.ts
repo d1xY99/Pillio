@@ -15,26 +15,49 @@ export type ApiSession = {
   user?: ApiUser;
 };
 
-function storage() {
+function webStorage(kind: 'local' | 'session') {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
-  return window.localStorage;
-}
-
-export function readSession(): ApiSession | null {
-  const raw = storage()?.getItem(KEY);
-  if (!raw) return null;
   try {
-    return JSON.parse(raw) as ApiSession;
+    return kind === 'local' ? window.localStorage : window.sessionStorage;
   } catch {
     return null;
   }
 }
 
+function parse(raw: string | null): ApiSession | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as ApiSession;
+    if (!value?.access_token && !value?.refresh_token) return null;
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+export function readSession(): ApiSession | null {
+  return parse(webStorage('local')?.getItem(KEY) ?? null) || parse(webStorage('session')?.getItem(KEY) ?? null);
+}
+
 export function writeSession(session: ApiSession | null) {
-  const store = storage();
-  if (!store) return;
-  if (!session) store.removeItem(KEY);
-  else store.setItem(KEY, JSON.stringify(session));
+  const local = webStorage('local');
+  const sessionStore = webStorage('session');
+  if (!session) {
+    local?.removeItem(KEY);
+    sessionStore?.removeItem(KEY);
+    return;
+  }
+  const raw = JSON.stringify(session);
+  try {
+    local?.setItem(KEY, raw);
+  } catch {
+    // iOS private / quota
+  }
+  try {
+    sessionStore?.setItem(KEY, raw);
+  } catch {
+    // ignore
+  }
 }
 
 export function accessToken() {
