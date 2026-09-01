@@ -1,13 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { GlassCard } from '@/components/glass-card';
 import { InsulinSyringe } from '@/components/insulin-syringe';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
-import { peptideMix } from '@/domain/peptide';
+import { Radius, Spacing } from '@/constants/theme';
+import { amountInUnit, formatMcg, formatMg, peptideMix } from '@/domain/peptide';
+import { useTheme } from '@/hooks/use-theme';
+
+const UNITS = ['mcg', 'mg'] as const;
+type DoseMass = (typeof UNITS)[number];
+
+function initialUnit(unit: string): DoseMass {
+  return unit.toLowerCase() === 'mg' ? 'mg' : 'mcg';
+}
+
+function prettyNumber(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '';
+  const rounded = Math.round(value * 10000) / 10000;
+  return String(rounded);
+}
 
 export function PeptideMathCard({
   vialMg,
@@ -22,9 +36,13 @@ export function PeptideMathCard({
   doseUnit: string;
   onSave?: (next: { vialMg: number; bacMl: number }) => void;
 }) {
+  const theme = useTheme();
   const [vial, setVial] = useState(vialMg != null ? String(vialMg) : '');
   const [bac, setBac] = useState(bacMl != null ? String(bacMl) : '');
-  const [dose, setDose] = useState(String(doseAmount));
+  const [unit, setUnit] = useState<DoseMass>(() => initialUnit(doseUnit));
+  const [dose, setDose] = useState(() =>
+    prettyNumber(amountInUnit(doseAmount, doseUnit, initialUnit(doseUnit))),
+  );
 
   useEffect(() => {
     setVial(vialMg != null ? String(vialMg) : '');
@@ -32,8 +50,10 @@ export function PeptideMathCard({
   }, [vialMg, bacMl]);
 
   useEffect(() => {
-    setDose(String(doseAmount));
-  }, [doseAmount]);
+    const next = initialUnit(doseUnit);
+    setUnit(next);
+    setDose(prettyNumber(amountInUnit(doseAmount, doseUnit, next)));
+  }, [doseAmount, doseUnit]);
 
   const mix = useMemo(
     () =>
@@ -41,12 +61,18 @@ export function PeptideMathCard({
         vialMg: Number(vial),
         bacMl: Number(bac),
         doseAmount: Number(dose),
-        doseUnit,
+        doseUnit: unit,
       }),
-    [vial, bac, dose, doseUnit],
+    [vial, bac, dose, unit],
   );
-  const dirty =
-    Number(vial) !== Number(vialMg) || Number(bac) !== Number(bacMl);
+  const dirty = Number(vial) !== Number(vialMg) || Number(bac) !== Number(bacMl);
+
+  function switchUnit(next: DoseMass) {
+    if (next === unit) return;
+    const converted = amountInUnit(Number(dose), unit, next);
+    setDose(prettyNumber(converted) || dose);
+    setUnit(next);
+  }
 
   return (
     <GlassCard style={styles.card}>
@@ -57,8 +83,9 @@ export function PeptideMathCard({
         <View style={styles.result}>
           <ThemedText type="display">{mix.unitsLabel}</ThemedText>
           <ThemedText type="callout" themeColor="textSecondary">
-            U-100 · {mix.volumeMl < 0.1 ? mix.volumeMl.toFixed(3) : mix.volumeMl.toFixed(2)} ml ·{' '}
-            {Math.round(mix.mcgPerMl / 100)} mcg per unit
+            {unit === 'mg'
+              ? `U-100 · ${formatMg(mix.doseMcg)} mg · ${mix.volumeMl < 0.1 ? mix.volumeMl.toFixed(3) : mix.volumeMl.toFixed(2)} ml · ${formatMg(mix.mcgPerMl)} mg/ml`
+              : `U-100 · ${formatMcg(mix.doseMcg)} mcg · ${mix.volumeMl < 0.1 ? mix.volumeMl.toFixed(3) : mix.volumeMl.toFixed(2)} ml · ${formatMcg(mix.mcgPerMl)} mcg/ml`}
           </ThemedText>
           {mix.overfill ? (
             <ThemedText type="captionBold" themeColor="danger">
@@ -81,13 +108,38 @@ export function PeptideMathCard({
           <TextField label="BAC (ml)" value={bac} onChangeText={setBac} keyboardType="decimal-pad" placeholder="2" />
         </View>
       </View>
-      <TextField
-        label={doseUnit === 'mg' ? 'Dose (mg)' : 'Dose (mcg)'}
-        value={dose}
-        onChangeText={setDose}
-        keyboardType="decimal-pad"
-        placeholder="250"
-      />
+      <View style={styles.doseRow}>
+        <View style={styles.flex}>
+          <TextField
+            label={`Dose (${unit})`}
+            value={dose}
+            onChangeText={setDose}
+            keyboardType="decimal-pad"
+            placeholder={unit === 'mg' ? '0.25' : '250'}
+          />
+        </View>
+        <View style={styles.switch}>
+          {UNITS.map((option) => {
+            const on = option === unit;
+            return (
+              <Pressable
+                key={option}
+                onPress={() => switchUnit(option)}
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: on ? theme.accentMuted : theme.surface,
+                    borderColor: on ? theme.accent : theme.border,
+                  },
+                ]}>
+                <ThemedText type="captionBold" style={{ color: on ? theme.accent : theme.textSecondary }}>
+                  {option}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
 
       {onSave ? (
         <Button
@@ -120,6 +172,22 @@ const styles = StyleSheet.create({
   fields: {
     flexDirection: 'row',
     gap: Spacing.two,
+  },
+  doseRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: Spacing.two,
+  },
+  switch: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingBottom: 4,
+  },
+  chip: {
+    borderWidth: 1,
+    borderRadius: Radius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   flex: {
     flex: 1,

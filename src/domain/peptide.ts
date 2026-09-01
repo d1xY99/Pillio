@@ -50,6 +50,24 @@ export function peptideMix(input: PeptideMixInput): PeptideMix {
   };
 }
 
+export function formatMg(mcg: number): string {
+  const mg = mcg / 1000;
+  if (!Number.isFinite(mg) || mg <= 0) return '0';
+  if (mg >= 10) return String(Math.round(mg * 10) / 10);
+  const digits = mg >= 1 ? 2 : mg >= 0.1 ? 2 : 3;
+  return mg.toFixed(digits).replace(/0+$/, '').replace(/\.$/, '');
+}
+
+export function formatMcg(mcg: number): string {
+  const rounded = Math.round(mcg * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+}
+
+export function amountInUnit(amount: number, fromUnit: string, toUnit: 'mg' | 'mcg'): number {
+  const mcg = fromUnit.toLowerCase() === 'mg' ? amount * 1000 : amount;
+  return toUnit === 'mg' ? mcg / 1000 : mcg;
+}
+
 export function formatPeptideDraw(
   vialMg?: number | null,
   bacMl?: number | null,
