@@ -6,11 +6,28 @@ import { PressScale } from '@/components/press-scale';
 import { ThemedText } from '@/components/themed-text';
 import { TypeBadge } from '@/components/type-badge';
 import { formatDose } from '@/constants/catalog';
+import { formatPeptideDraw } from '@/domain/peptide';
 import { Radius, Spacing } from '@/constants/theme';
 import type { SupplementType } from '@/db/types';
 import type { TodayDose } from '@/domain/doses';
 import { formatTimeMinutes } from '@/domain/time';
 import { useTheme } from '@/hooks/use-theme';
+
+function formatDoseLine(item: TodayDose, timeMinutes: number, taken: boolean) {
+  const draw = formatPeptideDraw(
+    item.supplement.vialMg,
+    item.supplement.bacMl,
+    item.amount,
+    item.unit,
+    item.supplement.drawDisplay === 'ml' ? 'ml' : 'units',
+  );
+  const bits = [formatDose(item.amount, item.unit)];
+  if (draw) bits.push(draw);
+  bits.push(formatTimeMinutes(timeMinutes));
+  if (item.overdue && !taken) bits.push('Overdue');
+  else if (taken) bits.push('Taken');
+  return bits.join(' · ');
+}
 
 export function DoseRow({
   item,
@@ -49,8 +66,7 @@ export function DoseRow({
             <TypeBadge type={item.supplement.type as SupplementType} />
           </View>
           <ThemedText type="callout" themeColor={item.overdue && !taken ? 'danger' : 'textSecondary'}>
-            {formatDose(item.amount, item.unit)} · {formatTimeMinutes(timeMinutes)}
-            {item.overdue && !taken ? ' · Overdue' : taken ? ' · Taken' : ''}
+            {formatDoseLine(item, timeMinutes, taken)}
           </ThemedText>
         </View>
         <View style={styles.check}>

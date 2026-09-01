@@ -14,6 +14,9 @@ export type SupplementForm = (typeof SUPPLEMENT_FORMS)[number];
 export const DOSE_UNITS = ['mg', 'mcg', 'g', 'IU', 'ml', 'mcL', 'caps', 'drops'] as const;
 export type DoseUnit = (typeof DOSE_UNITS)[number];
 
+export const DRAW_DISPLAYS = ['units', 'ml'] as const;
+export type DrawDisplay = (typeof DRAW_DISPLAYS)[number];
+
 export const SCHEDULE_FREQUENCIES = ['daily', 'weekly', 'every_n_days', 'weekdays', 'cycle'] as const;
 export type ScheduleFrequency = (typeof SCHEDULE_FREQUENCIES)[number];
 

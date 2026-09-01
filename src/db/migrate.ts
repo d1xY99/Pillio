@@ -122,10 +122,19 @@ const MIGRATION_3 = [
   `ALTER TABLE habits ADD COLUMN reminder_minutes INTEGER NOT NULL DEFAULT 540`,
 ];
 
+const MIGRATION_4 = [
+  `ALTER TABLE supplements ADD COLUMN vial_mg REAL`,
+  `ALTER TABLE supplements ADD COLUMN bac_ml REAL`,
+];
+
+const MIGRATION_5 = [`ALTER TABLE supplements ADD COLUMN draw_display TEXT NOT NULL DEFAULT 'units'`];
+
 const MIGRATIONS: { version: number; statements: string[] }[] = [
   { version: 1, statements: MIGRATION_1 },
   { version: 2, statements: MIGRATION_2 },
   { version: 3, statements: MIGRATION_3 },
+  { version: 4, statements: MIGRATION_4 },
+  { version: 5, statements: MIGRATION_5 },
 ];
 
 export function applySqlMigrations(executor: SqlExecutor) {

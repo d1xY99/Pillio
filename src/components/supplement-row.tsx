@@ -6,6 +6,7 @@ import { PressScale } from '@/components/press-scale';
 import { ThemedText } from '@/components/themed-text';
 import { TypeBadge } from '@/components/type-badge';
 import { FORM_LABELS, formatDose } from '@/constants/catalog';
+import { formatPeptideDraw } from '@/domain/peptide';
 import { Radius, Spacing } from '@/constants/theme';
 import type { Supplement } from '@/db/schema';
 import type { SupplementForm, SupplementType } from '@/db/types';
@@ -46,8 +47,20 @@ export function SupplementRow({
             <TypeBadge type={item.type as SupplementType} />
           </View>
           <ThemedText type="callout" themeColor="textSecondary">
-            {formatDose(item.defaultAmount, item.defaultUnit)} · {FORM_LABELS[item.form as SupplementForm]}
-            {status ? ` · ${status}` : ''}
+            {[
+              formatDose(item.defaultAmount, item.defaultUnit),
+              formatPeptideDraw(
+                item.vialMg,
+                item.bacMl,
+                item.defaultAmount,
+                item.defaultUnit,
+                item.drawDisplay === 'ml' ? 'ml' : 'units',
+              ),
+              FORM_LABELS[item.form as SupplementForm],
+              status,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </ThemedText>
         </View>
         {check ? (

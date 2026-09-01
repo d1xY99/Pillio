@@ -17,6 +17,9 @@ create table if not exists public.supplements (
   default_unit text not null,
   color text not null,
   notes text,
+  vial_mg double precision,
+  bac_ml double precision,
+  draw_display text not null default 'units',
   archived boolean not null default false,
   created_at bigint not null
 );

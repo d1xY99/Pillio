@@ -69,6 +69,9 @@ stackRoutes.post('/', async (c) => {
     default_unit: body.defaultUnit,
     color: body.color,
     notes: body.notes?.trim() || null,
+    vial_mg: body.vialMg == null || body.vialMg === '' ? null : Number(body.vialMg),
+    bac_ml: body.bacMl == null || body.bacMl === '' ? null : Number(body.bacMl),
+    draw_display: body.drawDisplay === 'ml' ? 'ml' : 'units',
     archived: false,
     created_at: createdAt,
   });
@@ -91,6 +94,13 @@ stackRoutes.patch('/:id', async (c) => {
   if (body.defaultUnit !== undefined) patch.default_unit = body.defaultUnit;
   if (body.color !== undefined) patch.color = body.color;
   if (body.notes !== undefined) patch.notes = body.notes?.trim() || null;
+  if (body.vialMg !== undefined) patch.vial_mg = body.vialMg == null || body.vialMg === '' ? null : Number(body.vialMg);
+  if (body.bacMl !== undefined) patch.bac_ml = body.bacMl == null || body.bacMl === '' ? null : Number(body.bacMl);
+  if (body.drawDisplay !== undefined) patch.draw_display = body.drawDisplay === 'ml' ? 'ml' : 'units';
+  if (body.type !== undefined && body.type !== 'peptide') {
+    patch.vial_mg = null;
+    patch.bac_ml = null;
+  }
   if (Object.keys(patch).length) {
     const { error } = await client.from('supplements').update(patch).eq('id', id).eq('user_id', userId);
     if (error) return c.json({ error: error.message }, 400);

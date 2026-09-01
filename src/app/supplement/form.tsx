@@ -84,6 +84,8 @@ export default function SupplementFormScreen() {
                   defaultUnit: existing.defaultUnit as SupplementInput['defaultUnit'],
                   color: existing.color,
                   notes: existing.notes,
+                  vialMg: existing.vialMg,
+                  bacMl: existing.bacMl,
                 }
               : undefined
           }

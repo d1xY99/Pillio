@@ -42,21 +42,18 @@ export function TabGlyph({
       </View>
     );
   }
-  if (route === 'analytics') {
+  if (route === 'progress') {
     return (
-      <View style={[styles.box, styles.row, { alignItems: 'flex-end', gap: 1.5 }]}>
-        <View style={[styles.col, { height: 6, backgroundColor: color }]} />
-        <View style={[styles.col, { height: 11, backgroundColor: color }]} />
-        <View style={[styles.col, { height: 8, backgroundColor: color }]} />
-        <View style={[styles.col, { height: 15, backgroundColor: color }]} />
+      <View style={styles.box}>
+        <View style={[styles.head, { backgroundColor: color }]} />
+        <View style={[styles.torso, { backgroundColor: color }]} />
       </View>
     );
   }
   return (
-    <View style={[styles.box, styles.row, { alignItems: 'flex-end', gap: 2 }]}>
-      <View style={[styles.col, { height: 7, backgroundColor: color }]} />
-      <View style={[styles.col, { height: 11, backgroundColor: color }]} />
-      <View style={[styles.col, { height: 16, backgroundColor: color }]} />
+    <View style={styles.box}>
+      <View style={[styles.ring, { borderColor: color }]} />
+      <View style={[styles.ringCap, { backgroundColor: color }]} />
     </View>
   );
 }
@@ -120,5 +117,32 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 1,
     transform: [{ rotate: '-40deg' }, { translateY: 1 }],
+  },
+  head: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginBottom: 1,
+  },
+  torso: {
+    width: 12,
+    height: 9,
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
+  },
+  ring: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2.5,
+  },
+  ringCap: {
+    position: 'absolute',
+    top: 2,
+    width: 3,
+    height: 6,
+    borderRadius: 1.5,
   },
 });

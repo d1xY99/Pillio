@@ -42,12 +42,18 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit, children 
   const [unit, setUnit] = useState<DoseUnit>(initial?.defaultUnit ?? 'mg');
   const [color, setColor] = useState(initial?.color ?? TYPE_COLORS.vitamin);
   const [notes, setNotes] = useState(initial?.notes ?? '');
+  const [vialMg, setVialMg] = useState(initial?.vialMg != null ? String(initial.vialMg) : '');
+  const [bacMl, setBacMl] = useState(initial?.bacMl != null ? String(initial.bacMl) : '');
   const [error, setError] = useState<string | null>(null);
 
   function handleTypeChange(next: SupplementType) {
     setType(next);
     if ((COLOR_SWATCHES as readonly string[]).includes(color) && color === TYPE_COLORS[type]) {
       setColor(TYPE_COLORS[next]);
+    }
+    if (next === 'peptide') {
+      if (form === 'capsule' || form === 'tablet') setForm('injection');
+      if (unit === 'caps' || unit === 'IU') setUnit('mcg');
     }
   }
 
@@ -71,6 +77,8 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit, children 
       defaultUnit: unit,
       color,
       notes: notes.trim() || null,
+      vialMg: type === 'peptide' ? parseOptional(vialMg) : null,
+      bacMl: type === 'peptide' ? parseOptional(bacMl) : null,
     });
   }
 
@@ -111,6 +119,35 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit, children 
       <FieldLabel label="Unit" />
       <ChoiceChips options={DOSE_UNITS} value={unit} labels={UNIT_LABELS} onChange={setUnit} />
 
+      {type === 'peptide' ? (
+        <View style={styles.mix}>
+          <FieldLabel label="Reconstitution (optional)" />
+          <View style={styles.mixRow}>
+            <View style={styles.flex}>
+              <TextField
+                label="Vial (mg)"
+                value={vialMg}
+                onChangeText={setVialMg}
+                keyboardType="decimal-pad"
+                placeholder="5"
+              />
+            </View>
+            <View style={styles.flex}>
+              <TextField
+                label="BAC water (ml)"
+                value={bacMl}
+                onChangeText={setBacMl}
+                keyboardType="decimal-pad"
+                placeholder="2"
+              />
+            </View>
+          </View>
+          <ThemedText type="caption" themeColor="textTertiary">
+            Saves the mix so Today can show insulin units next to the dose.
+          </ThemedText>
+        </View>
+      ) : null}
+
       <FieldLabel label="Color" />
       <View style={styles.swatches}>
         {COLOR_SWATCHES.map((swatch) => {
@@ -149,6 +186,11 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit, children 
   );
 }
 
+function parseOptional(value: string): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
 function FieldLabel({ label }: { label: string }) {
   return (
     <ThemedText type="captionBold" themeColor="textSecondary">
@@ -176,5 +218,15 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: Radius.full,
     borderWidth: 3,
+  },
+  mix: {
+    gap: Spacing.two,
+  },
+  mixRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  flex: {
+    flex: 1,
   },
 });

@@ -2,23 +2,26 @@ import { eq } from 'drizzle-orm';
 import { useLiveQuery } from '@/db/live';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { Button } from '@/components/button';
 import { Heatmap } from '@/components/heatmap';
+import { PeptideMathCard } from '@/components/peptide-math-card';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { TypeBadge } from '@/components/type-badge';
 import { TYPE_ART } from '@/constants/art';
 import { FORM_LABELS, formatDose } from '@/constants/catalog';
+import { formatPeptideDraw } from '@/domain/peptide';
 import { Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
 import { listDoseHistory } from '@/db/queries/doses';
 import { listSchedulesForSupplement } from '@/db/queries/schedules';
-import { deleteSupplement, setSupplementArchived } from '@/db/queries/supplements';
+import { deleteSupplement, setSupplementArchived, updateSupplement } from '@/db/queries/supplements';
+import { apiPatch } from '@/api/client';
 import { doseLogs, supplements } from '@/db/schema';
 import type { SupplementForm, SupplementType } from '@/db/types';
 import { adherenceDays } from '@/domain/adherence';
@@ -129,6 +132,46 @@ export default function SupplementDetailScreen() {
           <View style={[styles.dot, { backgroundColor: item.color }]} />
           <TypeBadge type={item.type as SupplementType} />
           <ThemedText type="display">{formatDose(item.defaultAmount, item.defaultUnit)}</ThemedText>
+          {item.type === 'peptide' ? (
+            <View style={styles.drawRow}>
+              <ThemedText type="headline" themeColor="accent">
+                {formatPeptideDraw(
+                  item.vialMg,
+                  item.bacMl,
+                  item.defaultAmount,
+                  item.defaultUnit,
+                  item.drawDisplay === 'ml' ? 'ml' : 'units',
+                ) ?? 'Set vial mix'}
+              </ThemedText>
+              {item.vialMg != null && item.bacMl != null ? (
+                <View style={styles.drawSwitch}>
+                  {(['units', 'ml'] as const).map((option) => {
+                    const on = (item.drawDisplay === 'ml' ? 'ml' : 'units') === option;
+                    return (
+                      <Pressable
+                        key={option}
+                        onPress={() => {
+                          if (on) return;
+                          updateSupplement(item.id, { drawDisplay: option });
+                          void apiPatch(`/stack/${item.id}`, { drawDisplay: option }).catch(() => undefined);
+                        }}
+                        style={[
+                          styles.drawChip,
+                          {
+                            backgroundColor: on ? `${theme.accent}33` : 'rgba(255,255,255,0.06)',
+                            borderColor: on ? theme.accent : 'rgba(255,255,255,0.14)',
+                          },
+                        ]}>
+                        <ThemedText type="captionBold" style={{ color: on ? theme.accent : 'rgba(244,247,245,0.7)' }}>
+                          {option}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+            </View>
+          ) : null}
           <ThemedText type="callout" themeColor="textSecondary">
             {FORM_LABELS[item.form as SupplementForm]}
           </ThemedText>
@@ -137,6 +180,19 @@ export default function SupplementDetailScreen() {
           </ThemedText>
         </View>
       </View>
+
+      {item.type === 'peptide' ? (
+        <PeptideMathCard
+          vialMg={item.vialMg}
+          bacMl={item.bacMl}
+          doseAmount={item.defaultAmount}
+          doseUnit={item.defaultUnit}
+          onSave={(next) => {
+            updateSupplement(item.id, next);
+            void apiPatch(`/stack/${item.id}`, next).catch(() => undefined);
+          }}
+        />
+      ) : null}
 
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <ThemedText type="captionBold" themeColor="textTertiary">
@@ -213,6 +269,22 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     minHeight: 220,
     justifyContent: 'flex-end',
+  },
+  drawRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  drawSwitch: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  drawChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
   dot: {
     width: 14,
