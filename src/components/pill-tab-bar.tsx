@@ -6,6 +6,7 @@ import { TabGlyph } from '@/components/tab-glyphs';
 const LABELS: Record<string, string> = {
   index: 'Today',
   stack: 'Stack',
+  habits: 'Habits',
   train: 'Train',
   progress: 'Body',
 };
@@ -68,7 +69,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: 20,
     gap: 4,
   },
@@ -76,7 +77,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(62,224,183,0.12)',
   },
   label: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.3,
   },

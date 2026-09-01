@@ -90,8 +90,36 @@ const MIGRATION_1 = [
   `CREATE INDEX IF NOT EXISTS progress_photos_taken_idx ON progress_photos (taken_at)`,
 ];
 
+const MIGRATION_2 = [
+  `CREATE TABLE IF NOT EXISTS habits (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    emoji TEXT NOT NULL,
+    color TEXT NOT NULL,
+    category TEXT NOT NULL,
+    notes TEXT,
+    frequency TEXT NOT NULL,
+    weekdays_mask INTEGER,
+    times_per_day INTEGER NOT NULL DEFAULT 1,
+    archived INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS habits_archived_idx ON habits (archived)`,
+  `CREATE TABLE IF NOT EXISTS habit_logs (
+    id TEXT PRIMARY KEY NOT NULL,
+    habit_id TEXT NOT NULL,
+    scheduled_for INTEGER NOT NULL,
+    occurrence INTEGER NOT NULL DEFAULT 0,
+    taken_at INTEGER,
+    skipped INTEGER NOT NULL DEFAULT 0
+  )`,
+  `CREATE INDEX IF NOT EXISTS habit_logs_scheduled_idx ON habit_logs (scheduled_for)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS habit_logs_habit_occ_uidx ON habit_logs (habit_id, scheduled_for, occurrence)`,
+];
+
 const MIGRATIONS: { version: number; statements: string[] }[] = [
   { version: 1, statements: MIGRATION_1 },
+  { version: 2, statements: MIGRATION_2 },
 ];
 
 export function applySqlMigrations(executor: SqlExecutor) {

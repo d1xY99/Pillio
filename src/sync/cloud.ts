@@ -7,6 +7,8 @@ import {
   bodyWeights,
   doseLogs,
   exercises,
+  habitLogs,
+  habits,
   progressPhotos,
   schedules,
   supplements,
@@ -15,12 +17,18 @@ import {
 } from '@/db/schema';
 import { startOfLocalDay, endOfLocalDay } from '@/domain/time';
 
-export type CloudSlice = 'stack' | 'gym' | 'body';
+export type CloudSlice = 'stack' | 'gym' | 'body' | 'habits';
 
 let syncDepth = 0;
 let clearing: Promise<void> | null = null;
 const pulled = new Set<CloudSlice>();
 const inflight = new Map<CloudSlice, Promise<void>>();
+const pullEpoch: Partial<Record<CloudSlice, number>> = {};
+
+export function keepLocalSlice(slice: CloudSlice) {
+  pulled.add(slice);
+  pullEpoch[slice] = (pullEpoch[slice] ?? 0) + 1;
+}
 
 export function beginCloudQuiet() {
   syncDepth += 1;
@@ -37,6 +45,7 @@ export function schedulePush() {}
 export function resetCloudPullState() {
   pulled.clear();
   inflight.clear();
+  for (const key of Object.keys(pullEpoch) as CloudSlice[]) delete pullEpoch[key];
 }
 
 function wipeSlice(slice: CloudSlice) {
@@ -49,6 +58,9 @@ function wipeSlice(slice: CloudSlice) {
     db.delete(workoutSets).run();
     db.delete(workoutSessions).run();
     db.delete(exercises).where(eq(exercises.isPreset, false)).run();
+  } else if (slice === 'habits') {
+    db.delete(habitLogs).run();
+    db.delete(habits).run();
   } else {
     db.delete(bodyWeights).run();
     db.delete(progressPhotos).run();
@@ -59,8 +71,11 @@ function insertRows(write: (row: any) => void, rows: any[] | undefined) {
   for (const row of rows ?? []) {
     try {
       write(row);
-    } catch {
-      // skip dup
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/unique|constraint|duplicate/i.test(message)) {
+        console.warn('cloud insert skipped', message);
+      }
     }
   }
 }
@@ -73,6 +88,7 @@ export async function clearLocalUserData() {
       wipeSlice('stack');
       wipeSlice('gym');
       wipeSlice('body');
+      wipeSlice('habits');
       resetCloudPullState();
       await flushLocalPersist();
     } finally {
@@ -106,6 +122,7 @@ export async function pullSlice(slice: CloudSlice) {
 
 async function doPullSlice(slice: CloudSlice) {
   if (pulled.has(slice)) return;
+  const epoch = pullEpoch[slice] ?? 0;
   beginCloudQuiet();
   try {
     if (slice === 'stack') {
@@ -117,11 +134,58 @@ async function doPullSlice(slice: CloudSlice) {
         schedules: any[];
         doseLogs: any[];
       }>(`/today?from=${from}&to=${to}&tzOffset=${tz.tzOffset}&now=${tz.now}`);
+      if ((pullEpoch[slice] ?? 0) !== epoch) return;
       wipeSlice('stack');
       const db = getDb();
       insertRows((row) => db.insert(supplements).values(row).run(), data.supplements);
       insertRows((row) => db.insert(schedules).values(row).run(), data.schedules);
       insertRows((row) => db.insert(doseLogs).values(row).run(), data.doseLogs);
+    } else if (slice === 'habits') {
+      const tz = clientTz();
+      const from = startOfLocalDay(tz.now);
+      const to = endOfLocalDay(tz.now);
+      const data = await apiGet<{ habits: any[]; logs: any[] }>(
+        `/habits?from=${from}&to=${to}&tzOffset=${tz.tzOffset}&now=${tz.now}`,
+      );
+      if ((pullEpoch[slice] ?? 0) !== epoch) return;
+      wipeSlice('habits');
+      if ((pullEpoch[slice] ?? 0) !== epoch) return;
+      const db = getDb();
+      insertRows(
+        (row) =>
+          db
+            .insert(habits)
+            .values({
+              id: String(row.id),
+              name: String(row.name),
+              emoji: String(row.emoji ?? '💧'),
+              color: String(row.color ?? '#3EE0B7'),
+              category: String(row.category ?? 'health'),
+              notes: row.notes ?? null,
+              frequency: String(row.frequency ?? 'daily'),
+              weekdaysMask: row.weekdaysMask == null ? null : Number(row.weekdaysMask),
+              timesPerDay: Number(row.timesPerDay ?? 1),
+              archived: Boolean(row.archived),
+              createdAt: Number(row.createdAt ?? Date.now()),
+            })
+            .run(),
+        data.habits,
+      );
+      insertRows(
+        (row) =>
+          db
+            .insert(habitLogs)
+            .values({
+              id: String(row.id),
+              habitId: String(row.habitId),
+              scheduledFor: Number(row.scheduledFor),
+              occurrence: Number(row.occurrence ?? 0),
+              takenAt: row.takenAt == null ? null : Number(row.takenAt),
+              skipped: Boolean(row.skipped),
+            })
+            .run(),
+        data.logs,
+      );
     } else if (slice === 'gym') {
       const data = await apiGet<{ exercises: any[]; sessions: any[]; sets: any[] }>('/train');
       wipeSlice('gym');

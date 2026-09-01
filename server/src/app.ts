@@ -4,6 +4,7 @@ import { cors } from 'hono/cors';
 import { isConfigured, supabaseHost } from './lib/env';
 import { authRoutes } from './routes/auth';
 import { bodyRoutes } from './routes/body';
+import { habitsRoutes } from './routes/habits';
 import { stackRoutes } from './routes/stack';
 import { todayRoutes } from './routes/today';
 import { trainRoutes } from './routes/train';
@@ -28,6 +29,7 @@ app.get('/health', (c) =>
 app.route('/auth', authRoutes);
 app.route('/today', todayRoutes);
 app.route('/stack', stackRoutes);
+app.route('/habits', habitsRoutes);
 app.route('/train', trainRoutes);
 app.route('/body', bodyRoutes);
 
