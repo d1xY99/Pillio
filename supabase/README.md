@@ -11,9 +11,17 @@ Cloud login is on `feature/supabase-auth` only. `main` is unchanged until you me
 
 ## 2. Tables
 
-SQL Editor → paste and run `supabase/schema.sql`.
+New SQL lives in `supabase/migrations/` and is applied by GitHub Actions on PR and on merge to `main`.
 
-If you already ran the first schema, also run `supabase/add-display-name.sql`.
+Add a repo secret **`SUPABASE_DB_URL`**:
+
+1. Supabase → Project Settings → Database  
+2. Connection string → **URI**  
+3. Use the **direct** host (`db.<ref>.supabase.co:5432`) or Session pooler, not transaction pooler  
+4. Append `?sslmode=require`  
+5. GitHub → Settings → Secrets and variables → Actions → `SUPABASE_DB_URL`
+
+The first schema (`schema.sql`) was applied by hand. Later changes (habits, etc.) go through CI.
 
 In Authentication → Providers, keep Email enabled.  
 For testing you can disable “Confirm email” in Authentication → Providers → Email.

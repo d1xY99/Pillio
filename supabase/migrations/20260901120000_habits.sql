@@ -1,6 +1,3 @@
--- Applied automatically by GitHub Actions (supabase/migrations).
--- Kept here as a copy; do not run by hand unless CI is not set up.
-
 create table if not exists public.habits (
   id uuid primary key,
   user_id uuid not null references auth.users (id) on delete cascade,
@@ -32,8 +29,10 @@ create index if not exists habit_logs_user_idx on public.habit_logs (user_id);
 alter table public.habits enable row level security;
 alter table public.habit_logs enable row level security;
 
+drop policy if exists "own habits" on public.habits;
 create policy "own habits" on public.habits
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists "own habit_logs" on public.habit_logs;
 create policy "own habit_logs" on public.habit_logs
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
