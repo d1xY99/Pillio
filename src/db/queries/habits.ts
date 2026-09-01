@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm';
 
 import { apiDelete, apiPatch, apiPost } from '@/api/client';
 import { getDb } from '@/db/client';
+import { notifyDbChanged } from '@/db/events';
 import { createId } from '@/db/ids';
 import { habitLogs, habits, type Habit, type NewHabit } from '@/db/schema';
 
@@ -45,6 +46,7 @@ export function createHabit(input: HabitInput): Habit {
     createdAt: Date.now(),
   };
   getDb().insert(habits).values(row).run();
+  notifyDbChanged();
   void apiPost('/habits', row).catch(() => undefined);
   return getHabit(id)!;
 }
@@ -64,17 +66,20 @@ export function updateHabit(id: string, input: HabitInput): void {
     })
     .where(eq(habits.id, id))
     .run();
+  notifyDbChanged();
   void apiPatch(`/habits/${id}`, input).catch(() => undefined);
 }
 
 export function setHabitArchived(id: string, archived: boolean): void {
   getDb().update(habits).set({ archived }).where(eq(habits.id, id)).run();
+  notifyDbChanged();
   void apiPatch(`/habits/${id}`, { archived }).catch(() => undefined);
 }
 
 export function deleteHabit(id: string): void {
   getDb().delete(habitLogs).where(eq(habitLogs.habitId, id)).run();
   getDb().delete(habits).where(eq(habits.id, id)).run();
+  notifyDbChanged();
   void apiDelete(`/habits/${id}`).catch(() => undefined);
 }
 
@@ -116,6 +121,7 @@ export function upsertHabitLog(input: {
       skipped: false,
     })
     .run();
+  notifyDbChanged();
 }
 
 export function markHabitLog(id: string, taken: boolean): void {
@@ -124,5 +130,6 @@ export function markHabitLog(id: string, taken: boolean): void {
     .set({ takenAt: taken ? Date.now() : null, skipped: false })
     .where(eq(habitLogs.id, id))
     .run();
+  notifyDbChanged();
   void apiPost(`/habits/logs/${id}/${taken ? 'take' : 'undo'}`).catch(() => undefined);
 }

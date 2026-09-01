@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -17,6 +17,7 @@ import { UiIcon } from '@/components/ui-icon';
 import { ART } from '@/constants/art';
 import { HABIT_CATEGORIES, habitCategoryArt } from '@/constants/habits';
 import { Radius, Spacing } from '@/constants/theme';
+import { subscribeDb } from '@/db/events';
 import { listHabits } from '@/db/queries/habits';
 import { ensureHabitLogs, listTodayHabits, overallHabitStreak, toggleTodayHabit } from '@/domain/habits';
 import { useCloudSlice } from '@/hooks/use-cloud-slice';
@@ -34,6 +35,14 @@ export default function HabitsScreen() {
       ensureHabitLogs(1);
       setTick((value) => value + 1);
     }, []),
+  );
+
+  useEffect(
+    () =>
+      subscribeDb(() => {
+        setTick((value) => value + 1);
+      }),
+    [],
   );
 
   const today = useMemo(() => listTodayHabits(), [tick]);
