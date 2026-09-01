@@ -7,6 +7,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ArtThumb } from '@/components/art-thumb';
 import { EmptyState } from '@/components/empty-state';
 import { FadeIn } from '@/components/fade-in';
+import { MenuButton } from '@/components/menu-button';
 import { Screen } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
 import { SupplementRow } from '@/components/supplement-row';
@@ -56,6 +57,7 @@ export default function StackScreen() {
           subtitle={showArchived ? 'Archived items' : 'Vitamins, peptides, and supplements'}
           right={
             <View style={styles.headerActions}>
+              <MenuButton />
               <Pressable
                 onPress={() => setShowArchived((value) => !value)}
                 style={[styles.toggle, { borderColor: theme.border, backgroundColor: theme.surface }]}>

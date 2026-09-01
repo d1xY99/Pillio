@@ -1,7 +1,14 @@
 import { Hono } from 'hono';
 
 import { requireUser, type AuthEnv } from '../lib/auth';
-import { getAuthUser, passwordSignIn, passwordSignUp, refreshSession } from '../lib/gotrue';
+import {
+  getAuthUser,
+  passwordSignIn,
+  passwordSignUp,
+  refreshSession,
+  requestPasswordReset,
+  updatePassword,
+} from '../lib/gotrue';
 import { userClient } from '../lib/supabase';
 
 export const authRoutes = new Hono<AuthEnv>();
@@ -47,6 +54,34 @@ authRoutes.post('/refresh', async (c) => {
   if ('error' in result && result.error) return c.json({ error: result.error }, 401);
   if (!result.session) return c.json({ error: 'Could not refresh' }, 401);
   return c.json({ session: result.session, user: publicUser(result.session.user) });
+});
+
+authRoutes.post('/forgot-password', async (c) => {
+  const body = await c.req.json<{ email?: string }>();
+  const email = (body.email ?? '').trim();
+  if (!email) return c.json({ error: 'Enter your email' }, 400);
+  const result = await requestPasswordReset(email);
+  if ('error' in result && result.error) return c.json({ error: result.error }, 400);
+  return c.json({
+    ok: true,
+    message: 'If that email has an account, we sent a reset link. Check your inbox.',
+  });
+});
+
+authRoutes.post('/change-password', requireUser, async (c) => {
+  const body = await c.req.json<{ currentPassword?: string; newPassword?: string }>();
+  const currentPassword = body.currentPassword ?? '';
+  const newPassword = body.newPassword ?? '';
+  if (newPassword.length < 6) return c.json({ error: 'New password must be at least 6 characters' }, 400);
+  const email = c.get('email');
+  if (!email) return c.json({ error: 'This account has no email' }, 400);
+
+  const check = await passwordSignIn(email, currentPassword);
+  if ('error' in check && check.error) return c.json({ error: 'Current password is wrong' }, 400);
+
+  const result = await updatePassword(c.get('token'), newPassword);
+  if ('error' in result && result.error) return c.json({ error: result.error }, 400);
+  return c.json({ ok: true });
 });
 
 authRoutes.post('/sign-out', requireUser, async (c) => {

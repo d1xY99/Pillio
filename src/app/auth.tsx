@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { apiPost } from '@/api/client';
 import { useAuth } from '@/auth/auth-context';
 import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
@@ -17,12 +18,13 @@ export default function AuthScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { signIn, signUp, configured, user, loading, hydrating } = useAuth();
-  const [mode, setMode] = useState<'in' | 'up'>('in');
+  const [mode, setMode] = useState<'in' | 'up' | 'forgot'>('in');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -31,6 +33,23 @@ export default function AuthScreen() {
 
   async function submit() {
     setError(null);
+    if (mode === 'forgot') {
+      if (!email.trim()) {
+        setError('Enter your email.');
+        return;
+      }
+      setBusy(true);
+      try {
+        const data = await apiPost<{ message?: string }>('/auth/forgot-password', { email: email.trim() });
+        setError(null);
+        setNotice(data.message ?? 'If that email has an account, we sent a reset link.');
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : 'Could not send reset email');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     if (mode === 'up') {
       if (!name.trim()) {
         setError('Enter your name.');
@@ -70,6 +89,7 @@ export default function AuthScreen() {
             onPress={() => {
               setMode('in');
               setError(null);
+              setNotice(null);
             }}
             style={[styles.switchBtn, mode === 'in' && { backgroundColor: theme.accentMuted }]}>
             <ThemedText type="captionBold" style={{ color: mode === 'in' ? theme.accent : theme.textSecondary }}>
@@ -80,6 +100,7 @@ export default function AuthScreen() {
             onPress={() => {
               setMode('up');
               setError(null);
+              setNotice(null);
             }}
             style={[styles.switchBtn, mode === 'up' && { backgroundColor: theme.accentMuted }]}>
             <ThemedText type="captionBold" style={{ color: mode === 'up' ? theme.accent : theme.textSecondary }}>
@@ -88,11 +109,15 @@ export default function AuthScreen() {
           </Pressable>
         </View>
 
-        <ThemedText type="title">{mode === 'in' ? 'Sign in to continue' : 'Create your account'}</ThemedText>
+        <ThemedText type="title">
+          {mode === 'in' ? 'Sign in to continue' : mode === 'up' ? 'Create your account' : 'Reset password'}
+        </ThemedText>
         <ThemedText type="callout" themeColor="textSecondary" style={styles.lead}>
           {mode === 'in'
             ? 'Your stack lives on your account. Sign in to open it on this phone.'
-            : 'New here? Add your name so the backup is yours.'}
+            : mode === 'up'
+              ? 'New here? Add your name so the backup is yours.'
+              : 'We’ll email a link to set a new password.'}
         </ThemedText>
 
         {!configured ? (
@@ -111,15 +136,17 @@ export default function AuthScreen() {
             onChangeText={setEmail}
             placeholder="you@email.com"
             keyboardType="email-address"
-            autoFocus={mode === 'in'}
+            autoFocus={mode === 'in' || mode === 'forgot'}
           />
-          <TextField
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            placeholder={mode === 'up' ? 'At least 6 characters' : 'Your password'}
-            secureTextEntry
-          />
+          {mode !== 'forgot' ? (
+            <TextField
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder={mode === 'up' ? 'At least 6 characters' : 'Your password'}
+              secureTextEntry
+            />
+          ) : null}
           {mode === 'up' ? (
             <TextField
               label="Confirm password"
@@ -134,11 +161,50 @@ export default function AuthScreen() {
               {error}
             </ThemedText>
           ) : null}
+          {notice ? (
+            <ThemedText type="callout" themeColor="accent">
+              {notice}
+            </ThemedText>
+          ) : null}
           <Button
-            label={busy || hydrating ? 'Loading your stack…' : mode === 'in' ? 'Sign in' : 'Create account'}
+            label={
+              busy || hydrating
+                ? 'Please wait…'
+                : mode === 'in'
+                  ? 'Sign in'
+                  : mode === 'up'
+                    ? 'Create account'
+                    : 'Send reset link'
+            }
             disabled={busy || hydrating || !configured}
             onPress={() => void submit()}
           />
+          {mode === 'in' ? (
+            <Pressable
+              onPress={() => {
+                setMode('forgot');
+                setError(null);
+                setNotice(null);
+              }}
+              style={styles.forgot}>
+              <ThemedText type="captionBold" themeColor="accent">
+                Forgot password?
+              </ThemedText>
+            </Pressable>
+          ) : null}
+          {mode === 'forgot' ? (
+            <Pressable
+              onPress={() => {
+                setMode('in');
+                setError(null);
+                setNotice(null);
+              }}
+              style={styles.forgot}>
+              <ThemedText type="captionBold" themeColor="textSecondary">
+                Back to sign in
+              </ThemedText>
+            </Pressable>
+          ) : null}
         </View>
       </Screen>
     </KeyboardAvoidingView>
@@ -175,5 +241,9 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: Spacing.three,
+  },
+  forgot: {
+    alignItems: 'center',
+    paddingVertical: Spacing.two,
   },
 });

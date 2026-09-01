@@ -11,6 +11,7 @@ import { ChoiceChips } from '@/components/choice-chips';
 import { EmptyState } from '@/components/empty-state';
 import { HeroBanner } from '@/components/hero-banner';
 import { Screen } from '@/components/screen';
+import { MenuButton } from '@/components/menu-button';
 import { ScreenHeader } from '@/components/screen-header';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
@@ -75,7 +76,7 @@ export default function ProgressScreen() {
 
   return (
     <Screen>
-      <ScreenHeader title="Progress" subtitle="Body weight and photos" />
+      <ScreenHeader title="Progress" subtitle="Body weight and photos" right={<MenuButton />} />
 
       <HeroBanner
         source={ART.progress}

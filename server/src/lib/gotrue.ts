@@ -95,6 +95,25 @@ export async function refreshSession(refreshToken: string) {
   return { session };
 }
 
+export async function requestPasswordReset(email: string) {
+  const { ok, body } = await gotrue('/recover', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+  if (!ok) return { error: messageOf(body) };
+  return { ok: true as const };
+}
+
+export async function updatePassword(accessToken: string, password: string) {
+  const { ok, body } = await gotrue('/user', {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ password }),
+  });
+  if (!ok) return { error: messageOf(body) };
+  return { ok: true as const };
+}
+
 export async function getAuthUser(accessToken: string) {
   const { ok, body } = await gotrue<GotrueUser>('/user', {
     headers: { Authorization: `Bearer ${accessToken}` },

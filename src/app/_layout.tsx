@@ -7,6 +7,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AuthProvider, useAuth } from '@/auth/auth-context';
 import { BootLoading } from '@/components/boot-loading';
+import { SettingsDrawer } from '@/components/settings-drawer';
+import { SettingsDrawerProvider } from '@/settings/drawer-context';
 import { ThemedText } from '@/components/themed-text';
 import { initDatabase } from '@/db/client';
 import { ensureUpcomingDoses } from '@/domain/doses';
@@ -98,10 +100,13 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.background }}>
       <AuthProvider>
-        <ThemeProvider value={navigationTheme}>
-          <StatusBar style={themeName === 'dark' ? 'light' : 'dark'} />
-          <RootNavigator />
-        </ThemeProvider>
+        <SettingsDrawerProvider>
+          <ThemeProvider value={navigationTheme}>
+            <StatusBar style={themeName === 'dark' ? 'light' : 'dark'} />
+            <RootNavigator />
+            <SettingsDrawer />
+          </ThemeProvider>
+        </SettingsDrawerProvider>
       </AuthProvider>
     </GestureHandlerRootView>
   );
@@ -138,13 +143,6 @@ function RootNavigator() {
       }}>
       <Stack.Protected guard={signedIn}>
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen
-          name="settings"
-          options={{
-            headerShown: true,
-            title: 'Settings',
-          }}
-        />
         <Stack.Screen
           name="supplement/[id]"
           options={{
