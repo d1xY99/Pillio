@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { EmptyState } from '@/components/empty-state';
@@ -112,7 +112,7 @@ export default function HabitsScreen() {
         </View>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cats}>
+      <View style={styles.catGrid}>
         <CategoryChip
           label="All"
           selected={filter === 'all'}
@@ -131,7 +131,7 @@ export default function HabitsScreen() {
             onPress={() => setFilter(cat.id)}
           />
         ))}
-      </ScrollView>
+      </View>
 
       {filtered.length === 0 ? (
         <FadeIn delay={80}>
@@ -181,7 +181,7 @@ function CategoryChip({
   delay?: number;
 }) {
   return (
-    <Animated.View entering={FadeInDown.delay(delay).springify().damping(16)}>
+    <Animated.View entering={FadeInDown.delay(delay).springify().damping(16)} style={styles.chipWrap}>
       <Pressable
         onPress={onPress}
         style={[styles.chip, selected && styles.chipOn]}>
@@ -224,21 +224,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
   },
-  cats: {
-    gap: 6,
-    paddingBottom: Spacing.three,
-    paddingRight: Spacing.two,
+  catGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: Spacing.three,
+  },
+  chipWrap: {
+    flexGrow: 1,
+    flexBasis: '22%',
   },
   chip: {
-    width: 72,
-    height: 56,
-    borderRadius: 12,
+    height: 72,
+    borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: 'transparent',
     justifyContent: 'flex-end',
-    paddingHorizontal: 6,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
   },
   chipOn: {
     borderColor: '#3EE0B7',

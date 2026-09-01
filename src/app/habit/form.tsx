@@ -11,6 +11,7 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { HABIT_CATEGORIES, HABIT_COLORS, HABIT_EMOJIS, habitCategoryArt } from '@/constants/habits';
 import { Radius, Spacing } from '@/constants/theme';
+import { notifyDbChanged } from '@/db/events';
 import { createHabit, getHabit, updateHabit } from '@/db/queries/habits';
 import { ensureHabitLogs } from '@/domain/habits';
 import { useTheme } from '@/hooks/use-theme';
@@ -63,6 +64,7 @@ export default function HabitFormScreen() {
     if (existing) updateHabit(existing.id, input);
     else createHabit(input);
     ensureHabitLogs(1);
+    notifyDbChanged();
     router.back();
   }
 

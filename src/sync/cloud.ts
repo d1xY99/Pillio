@@ -145,7 +145,6 @@ async function doPullSlice(slice: CloudSlice) {
         `/habits?from=${from}&to=${to}&tzOffset=${tz.tzOffset}&now=${tz.now}`,
       );
       if ((pullEpoch[slice] ?? 0) !== epoch) return;
-      wipeSlice('habits');
       const db = getDb();
       insertRows((row) => db.insert(habits).values(row).run(), data.habits);
       insertRows((row) => db.insert(habitLogs).values(row).run(), data.logs);
