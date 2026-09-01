@@ -1,14 +1,15 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { EmptyState } from '@/components/empty-state';
-import { FadeIn } from '@/components/fade-in';
+import { FadeIn as FadeBlock } from '@/components/fade-in';
+import { HabitLaneCard } from '@/components/habit-lane-card';
 import { HabitRow } from '@/components/habit-row';
-import { HeroBanner } from '@/components/hero-banner';
+import { Kicker } from '@/components/kicker';
 import { MenuButton } from '@/components/menu-button';
 import { Screen } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
@@ -17,14 +18,20 @@ import { UiIcon } from '@/components/ui-icon';
 import { ART } from '@/constants/art';
 import { HABIT_CATEGORIES, habitCategoryArt } from '@/constants/habits';
 import { Radius, Spacing } from '@/constants/theme';
-import { getDb } from '@/db/client';
 import { subscribeDb } from '@/db/events';
-import { useLiveQuery } from '@/db/live';
-import { listHabits } from '@/db/queries/habits';
-import { habits as habitsTable } from '@/db/schema';
-import { ensureHabitLogs, listTodayHabits, overallHabitStreak, toggleTodayHabit } from '@/domain/habits';
+import { listHabitLogsOnDay, listHabits } from '@/db/queries/habits';
+import {
+  ensureHabitLogs,
+  isHabitDueOnDay,
+  overallHabitStreak,
+  toggleTodayHabit,
+  type TodayHabit,
+} from '@/domain/habits';
+import { endOfLocalDay, startOfLocalDay } from '@/domain/time';
 import { useCloudSlice } from '@/hooks/use-cloud-slice';
 import { useTheme } from '@/hooks/use-theme';
+
+const LANE_ROWS = [HABIT_CATEGORIES.slice(0, 3), HABIT_CATEGORIES.slice(3, 6)] as const;
 
 export default function HabitsScreen() {
   useCloudSlice('habits');
@@ -32,16 +39,20 @@ export default function HabitsScreen() {
   const theme = useTheme();
   const [tick, setTick] = useState(0);
   const [filter, setFilter] = useState<string>('all');
-  const { updatedAt } = useLiveQuery(getDb().select().from(habitsTable), []);
 
   useFocusEffect(
     useCallback(() => {
-      ensureHabitLogs(1);
-      setTick((value) => value + 1);
+      try {
+        ensureHabitLogs(1);
+      } catch {
+        // list still reads whatever is already stored
+      } finally {
+        setTick((value) => value + 1);
+      }
     }, []),
   );
 
-  useEffect(
+  useLayoutEffect(
     () =>
       subscribeDb(() => {
         setTick((value) => value + 1);
@@ -49,7 +60,7 @@ export default function HabitsScreen() {
     [],
   );
 
-  const today = useMemo(() => listTodayHabits(), [tick, updatedAt]);
+  const today = useMemo(() => buildTodayHabits(), [tick]);
   const filtered = filter === 'all' ? today : today.filter((row) => row.habit.category === filter);
   const archivedOff = listHabits(false);
   const done = today.filter((row) => row.complete).length;
@@ -60,6 +71,10 @@ export default function HabitsScreen() {
     for (const row of today) map[row.habit.category] = (map[row.habit.category] ?? 0) + 1;
     return map;
   }, [today]);
+  const remaining = Math.max(total - done, 0);
+  const heroTitle =
+    total === 0 ? 'Build the day' : done === total ? 'All checked' : `${remaining} still open`;
+  const listLabel = filter === 'all' ? 'Today' : (HABIT_CATEGORIES.find((row) => row.id === filter)?.label ?? 'Today');
 
   return (
     <Screen>
@@ -79,62 +94,64 @@ export default function HabitsScreen() {
         }
       />
 
-      <HeroBanner
-        kicker="RITUAL"
-        title={
-          total === 0
-            ? 'Build the day'
-            : done === total
-              ? 'All checked'
-              : `${total - done} still open`
-        }
-        source={ART.habitHero}
-      />
+      <Animated.View entering={FadeIn.duration(800)} style={styles.hero}>
+        <Image source={ART.habitHero} style={styles.heroImage} contentFit="cover" />
+        <LinearGradient colors={['rgba(6,7,8,0.18)', 'rgba(6,7,8,0.84)']} style={StyleSheet.absoluteFill} />
+        <View style={styles.heroEdge} />
+        <View style={styles.heroCopy}>
+          <Kicker label="RITUAL" />
+          <ThemedText type="title" style={styles.heroTitle} numberOfLines={1}>
+            {heroTitle}
+          </ThemedText>
+          <View style={styles.heroMeta}>
+            <HeroStat value={done} label="done" />
+            <View style={styles.heroRule} />
+            <HeroStat value={total} label="due" />
+            <View style={styles.heroRule} />
+            <HeroStat value={streak} label="streak" />
+          </View>
+        </View>
+      </Animated.View>
 
-      <View style={styles.stats}>
-        <View style={[styles.stat, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-          <ThemedText type="title">{done}</ThemedText>
-          <ThemedText type="caption" themeColor="textTertiary">
-            done
+      <View style={styles.sectionHead}>
+        <ThemedText type="captionBold" themeColor="textTertiary" style={styles.sectionKicker}>
+          LANES
+        </ThemedText>
+        <Pressable onPress={() => setFilter('all')} hitSlop={8} accessibilityLabel="Show all habits">
+          <ThemedText type="captionBold" themeColor={filter === 'all' ? 'accent' : 'textSecondary'}>
+            All
           </ThemedText>
-        </View>
-        <View style={[styles.stat, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-          <ThemedText type="title">{total}</ThemedText>
-          <ThemedText type="caption" themeColor="textTertiary">
-            due
-          </ThemedText>
-        </View>
-        <View style={[styles.stat, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-          <ThemedText type="title">{streak}</ThemedText>
-          <ThemedText type="caption" themeColor="textTertiary">
-            streak
-          </ThemedText>
-        </View>
+        </Pressable>
       </View>
-
-      <View style={styles.catGrid}>
-        <CategoryChip
-          label="All"
-          selected={filter === 'all'}
-          source={ART.habitHero}
-          count={today.length}
-          onPress={() => setFilter('all')}
-        />
-        {HABIT_CATEGORIES.map((cat, index) => (
-          <CategoryChip
-            key={cat.id}
-            label={cat.label}
-            selected={filter === cat.id}
-            source={habitCategoryArt(cat.id)}
-            count={counts[cat.id] ?? 0}
-            delay={40 + index * 40}
-            onPress={() => setFilter(cat.id)}
-          />
+      <View style={styles.lanes}>
+        {LANE_ROWS.map((row, rowIndex) => (
+          <View key={row.map((item) => item.id).join('-')} style={styles.laneRow}>
+            {row.map((cat, index) => (
+              <HabitLaneCard
+                key={cat.id}
+                label={cat.label}
+                meta={`${counts[cat.id] ?? 0}`}
+                source={habitCategoryArt(cat.id)}
+                selected={filter === cat.id}
+                delay={40 + (rowIndex * 3 + index) * 40}
+                onPress={() => setFilter((current) => (current === cat.id ? 'all' : cat.id))}
+              />
+            ))}
+          </View>
         ))}
       </View>
 
+      <View style={styles.sectionHead}>
+        <ThemedText type="captionBold" themeColor="textTertiary" style={styles.sectionKicker}>
+          {listLabel.toUpperCase()}
+        </ThemedText>
+        <ThemedText type="caption" themeColor="textTertiary">
+          {filtered.length}
+        </ThemedText>
+      </View>
+
       {filtered.length === 0 ? (
-        <FadeIn delay={80}>
+        <FadeBlock delay={80}>
           <EmptyState
             icon="checkmark.circle"
             title={archivedOff.length ? 'Nothing in this lane' : 'No habits yet'}
@@ -144,7 +161,7 @@ export default function HabitsScreen() {
                 : 'Pick a category, give it a name, check it off like Today.'
             }
           />
-        </FadeIn>
+        </FadeBlock>
       ) : (
         <View style={styles.list}>
           {filtered.map((item, index) => (
@@ -165,36 +182,38 @@ export default function HabitsScreen() {
   );
 }
 
-function CategoryChip({
-  label,
-  source,
-  selected,
-  count,
-  onPress,
-  delay = 0,
-}: {
-  label: string;
-  source: typeof ART.habitHero;
-  selected: boolean;
-  count: number;
-  onPress: () => void;
-  delay?: number;
-}) {
+function buildTodayHabits(): TodayHabit[] {
+  const start = startOfLocalDay();
+  const logs = (() => {
+    try {
+      return listHabitLogsOnDay(start, endOfLocalDay());
+    } catch {
+      return [];
+    }
+  })();
+  return listHabits(false)
+    .filter((habit) => isHabitDueOnDay(habit, start))
+    .map((habit) => {
+      const rows = logs
+        .filter((log) => log.habitId === habit.id)
+        .sort((a, b) => a.occurrence - b.occurrence);
+      const done = rows.filter((log) => log.takenAt).length;
+      const total = Math.max(rows.length, habit.timesPerDay);
+      return { habit, logs: rows, done, total, complete: done >= total && total > 0 };
+    })
+    .sort((a, b) => Number(a.complete) - Number(b.complete) || a.habit.name.localeCompare(b.habit.name));
+}
+
+function HeroStat({ value, label }: { value: number; label: string }) {
   return (
-    <Animated.View entering={FadeInDown.delay(delay).springify().damping(16)} style={styles.chipWrap}>
-      <Pressable
-        onPress={onPress}
-        style={[styles.chip, selected && styles.chipOn]}>
-        <Image source={source} style={styles.chipImage} contentFit="cover" />
-        <LinearGradient colors={['transparent', 'rgba(6,7,8,0.92)']} style={StyleSheet.absoluteFill} />
-        <ThemedText type="captionBold" style={styles.chipLabel}>
-          {label}
-        </ThemedText>
-        <ThemedText type="caption" style={styles.chipCount}>
-          {count}
-        </ThemedText>
-      </Pressable>
-    </Animated.View>
+    <View style={styles.heroStat}>
+      <ThemedText type="headline" style={styles.heroStatValue}>
+        {value}
+      </ThemedText>
+      <ThemedText type="caption" style={styles.heroStatLabel}>
+        {label}
+      </ThemedText>
+    </View>
   );
 }
 
@@ -211,55 +230,78 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stats: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    marginBottom: Spacing.three,
-  },
-  stat: {
-    flex: 1,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    paddingVertical: Spacing.two,
-    alignItems: 'center',
-    gap: 2,
-  },
-  catGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: Spacing.three,
-  },
-  chipWrap: {
-    flexGrow: 1,
-    flexBasis: '22%',
-  },
-  chip: {
-    height: 72,
-    borderRadius: 14,
+  hero: {
+    height: 168,
+    borderRadius: Radius.lg,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    marginBottom: Spacing.four,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  chipOn: {
-    borderColor: '#3EE0B7',
-  },
-  chipImage: {
+  heroImage: {
     ...StyleSheet.absoluteFill,
+    transform: [{ scale: 1.04 }],
   },
-  chipLabel: {
+  heroEdge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(62,224,183,0.35)',
+  },
+  heroCopy: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.three,
+    gap: 8,
+  },
+  heroTitle: {
     color: '#F6FAF8',
-    fontSize: 10,
+    letterSpacing: -0.8,
   },
-  chipCount: {
-    color: 'rgba(244,247,245,0.7)',
-    fontSize: 9,
+  heroMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  heroStat: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+  },
+  heroStatValue: {
+    color: '#F6FAF8',
+  },
+  heroStatLabel: {
+    color: 'rgba(244,247,245,0.62)',
+  },
+  heroRule: {
+    width: 1,
+    height: 14,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.two,
+  },
+  sectionKicker: {
+    letterSpacing: 1.6,
+    fontSize: 11,
+  },
+  lanes: {
+    gap: 10,
+    marginBottom: Spacing.four,
+  },
+  laneRow: {
+    flexDirection: 'row',
+    gap: 10,
   },
   list: {
-    gap: Spacing.two,
+    gap: Spacing.three,
     paddingBottom: Spacing.four,
   },
 });

@@ -90,9 +90,10 @@ export function listHabitLogsOnDay(dayStart: number, dayEnd: number) {
   return getDb()
     .select()
     .from(habitLogs)
-    .where(and(eq(habitLogs.skipped, false)))
     .all()
-    .filter((row) => row.scheduledFor >= dayStart && row.scheduledFor <= dayEnd);
+    .filter(
+      (row) => !row.skipped && row.scheduledFor >= dayStart && row.scheduledFor <= dayEnd,
+    );
 }
 
 export function upsertHabitLog(input: {
@@ -113,18 +114,23 @@ export function upsertHabitLog(input: {
     )
     .get();
   if (existing) return;
-  getDb()
-    .insert(habitLogs)
-    .values({
-      id: input.id ?? createId(),
-      habitId: input.habitId,
-      scheduledFor: input.scheduledFor,
-      occurrence: input.occurrence,
-      takenAt: null,
-      skipped: false,
-    })
-    .run();
-  notifyDbChanged();
+  try {
+    getDb()
+      .insert(habitLogs)
+      .values({
+        id: input.id ?? createId(),
+        habitId: input.habitId,
+        scheduledFor: input.scheduledFor,
+        occurrence: input.occurrence,
+        takenAt: null,
+        skipped: false,
+      })
+      .run();
+    notifyDbChanged();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/unique|constraint|duplicate/i.test(message)) throw error;
+  }
 }
 
 export function markHabitLog(id: string, taken: boolean): void {

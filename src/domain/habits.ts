@@ -46,7 +46,11 @@ export function ensureHabitLogs(daysAhead = 1) {
 }
 
 export function listTodayHabits(): TodayHabit[] {
-  ensureHabitLogs(0);
+  try {
+    ensureHabitLogs(0);
+  } catch {
+    // still render whatever is already stored
+  }
   const start = startOfLocalDay();
   const end = endOfLocalDay();
   const logs = listHabitLogsOnDay(start, end);

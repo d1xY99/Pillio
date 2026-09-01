@@ -113,27 +113,31 @@ export default function HabitFormScreen() {
           Category
         </ThemedText>
         <View style={styles.catGrid}>
-          {HABIT_CATEGORIES.map((item) => {
-            const active = item.id === category;
-            return (
-              <Pressable
-                key={item.id}
-                onPress={() => {
-                  setCategory(item.id);
-                  setColor(HABIT_COLORS[HABIT_CATEGORIES.findIndex((row) => row.id === item.id)] ?? color);
-                }}
-                style={[styles.catCard, active && { borderColor: theme.accent }]}>
-                <Image source={habitCategoryArt(item.id)} style={StyleSheet.absoluteFill} contentFit="cover" />
-                <LinearGradient colors={['transparent', 'rgba(6,7,8,0.92)']} style={StyleSheet.absoluteFill} />
-                <ThemedText type="captionBold" style={styles.catLabel}>
-                  {item.label}
-                </ThemedText>
-                <ThemedText type="caption" style={styles.catKicker}>
-                  {item.kicker}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
+          {[HABIT_CATEGORIES.slice(0, 3), HABIT_CATEGORIES.slice(3, 6)].map((row) => (
+            <View key={row.map((item) => item.id).join('-')} style={styles.catRow}>
+              {row.map((item) => {
+                const active = item.id === category;
+                return (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => {
+                      setCategory(item.id);
+                      setColor(HABIT_COLORS[HABIT_CATEGORIES.findIndex((cat) => cat.id === item.id)] ?? color);
+                    }}
+                    style={[styles.catCard, active && { borderColor: theme.accent }]}>
+                    <Image source={habitCategoryArt(item.id)} style={StyleSheet.absoluteFill} contentFit="cover" />
+                    <LinearGradient colors={['transparent', 'rgba(6,7,8,0.92)']} style={StyleSheet.absoluteFill} />
+                    <ThemedText type="captionBold" style={styles.catLabel}>
+                      {item.label}
+                    </ThemedText>
+                    <ThemedText type="caption" style={styles.catKicker}>
+                      {item.kicker}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ))}
         </View>
 
         <ThemedText type="captionBold" themeColor="textSecondary">
@@ -257,22 +261,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   catGrid: {
+    gap: 10,
+    marginBottom: Spacing.four,
+  },
+  catRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: Spacing.three,
+    gap: 10,
   },
   catCard: {
-    width: '31%',
-    minWidth: 96,
-    flexGrow: 1,
-    height: 88,
+    flex: 1,
+    height: 124,
     borderRadius: Radius.md,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: 'transparent',
     justifyContent: 'flex-end',
-    padding: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   catLabel: { color: '#F6FAF8' },
   catKicker: { color: 'rgba(244,247,245,0.65)' },
