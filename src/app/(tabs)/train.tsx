@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/empty-state';
 import { FadeIn } from '@/components/fade-in';
 import { HeroBanner } from '@/components/hero-banner';
 import { Screen } from '@/components/screen';
+import { MenuButton } from '@/components/menu-button';
 import { ScreenHeader } from '@/components/screen-header';
 import { ThemedText } from '@/components/themed-text';
 import { ART } from '@/constants/art';
@@ -59,7 +60,7 @@ export default function TrainScreen() {
 
   return (
     <Screen>
-      <ScreenHeader title="Train" subtitle="Working weights and sessions" />
+      <ScreenHeader title="Train" subtitle="Working weights and sessions" right={<MenuButton />} />
 
       <HeroBanner
         source={ART.train}

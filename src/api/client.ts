@@ -50,8 +50,13 @@ export async function api<T = any>(
   const headers = new Headers(init.headers);
   if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   let token = accessToken();
-  const skipRefresh = init.auth === false || path.startsWith('/auth/');
-  if (!skipRefresh && token) headers.set('Authorization', `Bearer ${token}`);
+  const publicAuth =
+    path === '/auth/sign-in' ||
+    path === '/auth/sign-up' ||
+    path === '/auth/forgot-password' ||
+    path === '/auth/refresh';
+  const skipAuth = init.auth === false || publicAuth;
+  if (!skipAuth && token) headers.set('Authorization', `Bearer ${token}`);
 
   const url = `${apiBase()}/api${path}`;
   const run = () => fetch(url, { ...init, headers });
@@ -65,7 +70,7 @@ export async function api<T = any>(
       : 'API is not reachable. On this phone use https://pillioo.netlify.app. Locally run npm run api.';
     throw new Error(hint);
   }
-  if (res.status === 401 && !skipRefresh && token) {
+  if (res.status === 401 && !skipAuth && token) {
     const next = await refreshAccess();
     if (next) {
       headers.set('Authorization', `Bearer ${next}`);

@@ -10,7 +10,11 @@ export type UiIconName =
   | 'chart.line.uptrend.xyaxis'
   | 'checkmark'
   | 'checkmark.circle'
-  | 'camera.fill';
+  | 'camera.fill'
+  | 'xmark'
+  | 'chevron.right'
+  | 'lock.fill'
+  | 'arrow.left';
 
 const GLYPH: Record<UiIconName, string> = {
   plus: '+',
@@ -22,6 +26,10 @@ const GLYPH: Record<UiIconName, string> = {
   checkmark: '✓',
   'checkmark.circle': '✓',
   'camera.fill': '◉',
+  xmark: '✕',
+  'chevron.right': '›',
+  'lock.fill': '∗',
+  'arrow.left': '←',
 };
 
 export function UiIcon({

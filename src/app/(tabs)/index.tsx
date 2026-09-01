@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/empty-state';
 import { FadeIn } from '@/components/fade-in';
 import { GlassCard } from '@/components/glass-card';
 import { HeroBanner } from '@/components/hero-banner';
-import { IconButton } from '@/components/icon-button';
+import { MenuButton } from '@/components/menu-button';
 import { PulseRing } from '@/components/pulse-ring';
 import { Screen } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
@@ -27,6 +27,7 @@ import { overallStreak } from '@/domain/adherence';
 import { ensureUpcomingDoses, groupDosesByTime, listParkedWeekly, listTodayDoses } from '@/domain/doses';
 import { endOfLocalDay, formatTimeMinutes, startOfLocalDay } from '@/domain/time';
 import { useTheme } from '@/hooks/use-theme';
+import { useSettingsDrawer } from '@/settings/drawer-context';
 
 function formatToday() {
   return new Intl.DateTimeFormat('en-US', {
@@ -39,6 +40,7 @@ function formatToday() {
 export default function TodayScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const menu = useSettingsDrawer();
   const db = getDb();
   const [nowTick, setNowTick] = useState(0);
   const [permission, setPermission] = useState<'granted' | 'denied' | 'undetermined' | 'web'>('undetermined');
@@ -85,13 +87,7 @@ export default function TodayScreen() {
       <ScreenHeader
         title="Today"
         subtitle={formatToday()}
-        right={
-          <IconButton
-            name="gearshape"
-            accessibilityLabel="Open settings"
-            onPress={() => router.push('/settings')}
-          />
-        }
+        right={<MenuButton />}
       />
 
       {Platform.OS === 'web' && !webAlertsOn ? (
@@ -102,7 +98,7 @@ export default function TodayScreen() {
               Share this page → Add to Home Screen, then open Pillio from that icon. In Settings,
               subscribe in ntfy so alerts still arrive when the phone is locked.
             </ThemedText>
-            <Button label="Open settings" onPress={() => router.push('/settings')} />
+            <Button label="Open menu" onPress={menu.show} />
           </GlassCard>
         </FadeIn>
       ) : Platform.OS !== 'web' && permission !== 'granted' ? (
