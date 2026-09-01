@@ -2,6 +2,7 @@ import type { Context } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 
 export const REFRESH_COOKIE = 'pillio_rt';
+// Sliding window: rewritten on every app open, so active use never hits a hard cutoff.
 const MAX_AGE = 60 * 60 * 24 * 30;
 
 function cookieOpts(c: Context) {

@@ -70,9 +70,13 @@ authRoutes.post('/refresh', async (c) => {
 authRoutes.post('/session', async (c) => {
   const header = c.req.header('Authorization') ?? '';
   const access = header.startsWith('Bearer ') ? header.slice(7) : '';
+  const body = await c.req.json<{ refreshToken?: string }>().catch(() => ({} as { refreshToken?: string }));
+  const refreshToken = body.refreshToken || readRefreshCookie(c);
+
   if (access) {
     const user = await getAuthUser(access);
     if (user) {
+      if (refreshToken) writeRefreshCookie(c, refreshToken);
       const { data: profile } = await userClient(access)
         .from('profiles')
         .select('display_name')
@@ -81,9 +85,6 @@ authRoutes.post('/session', async (c) => {
       return c.json({ user: publicUser(user, (profile?.display_name as string | undefined) ?? '') });
     }
   }
-
-  const body = await c.req.json<{ refreshToken?: string }>().catch(() => ({} as { refreshToken?: string }));
-  const refreshToken = body.refreshToken || readRefreshCookie(c);
   if (!refreshToken) return c.json({ error: 'Signed out' }, 401);
   const result = await refreshSession(refreshToken);
   if ('error' in result && result.error) {
