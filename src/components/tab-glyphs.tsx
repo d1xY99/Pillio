@@ -42,6 +42,16 @@ export function TabGlyph({
       </View>
     );
   }
+  if (route === 'analytics') {
+    return (
+      <View style={[styles.box, styles.row, { alignItems: 'flex-end', gap: 1.5 }]}>
+        <View style={[styles.col, { height: 6, backgroundColor: color }]} />
+        <View style={[styles.col, { height: 11, backgroundColor: color }]} />
+        <View style={[styles.col, { height: 8, backgroundColor: color }]} />
+        <View style={[styles.col, { height: 15, backgroundColor: color }]} />
+      </View>
+    );
+  }
   return (
     <View style={[styles.box, styles.row, { alignItems: 'flex-end', gap: 2 }]}>
       <View style={[styles.col, { height: 7, backgroundColor: color }]} />

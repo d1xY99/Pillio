@@ -9,6 +9,7 @@ const LABELS: Record<string, string> = {
   habits: 'Habits',
   train: 'Train',
   progress: 'Body',
+  analytics: 'Stats',
 };
 
 export function PillTabBar({
@@ -51,15 +52,15 @@ const styles = StyleSheet.create({
   },
   bar: {
     flexDirection: 'row',
-    marginHorizontal: 16,
+    marginHorizontal: 10,
     backgroundColor: '#12151C',
     borderRadius: 24,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.10)',
-    padding: 4,
-    gap: 2,
-    width: '92%',
-    maxWidth: 440,
+    padding: 3,
+    gap: 1,
+    width: '96%',
+    maxWidth: 520,
     shadowColor: '#000',
     shadowOpacity: 0.45,
     shadowRadius: 20,
@@ -69,15 +70,15 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 7,
-    borderRadius: 20,
-    gap: 4,
+    paddingVertical: 6,
+    borderRadius: 18,
+    gap: 3,
   },
   itemActive: {
     backgroundColor: 'rgba(62,224,183,0.12)',
   },
   label: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '700',
     letterSpacing: 0.3,
   },

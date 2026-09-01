@@ -70,12 +70,24 @@ export function refreshToken() {
 }
 
 export function readLocalOwner(): string | null {
-  return storage()?.getItem(OWNER_KEY) ?? null;
+  return webStorage('local')?.getItem(OWNER_KEY) ?? webStorage('session')?.getItem(OWNER_KEY) ?? null;
 }
 
 export function writeLocalOwner(userId: string | null) {
-  const store = storage();
-  if (!store) return;
-  if (!userId) store.removeItem(OWNER_KEY);
-  else store.setItem(OWNER_KEY, userId);
+  const local = webStorage('local');
+  const sessionStore = webStorage('session');
+  if (!userId) {
+    local?.removeItem(OWNER_KEY);
+    sessionStore?.removeItem(OWNER_KEY);
+    return;
+  }
+  try {
+    local?.setItem(OWNER_KEY, userId);
+  } catch {
+    try {
+      sessionStore?.setItem(OWNER_KEY, userId);
+    } catch {
+      // iOS private / quota
+    }
+  }
 }
