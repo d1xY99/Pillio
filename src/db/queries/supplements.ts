@@ -5,7 +5,7 @@ import { getDb } from '@/db/client';
 import { notifyDbChanged } from '@/db/events';
 import { createId } from '@/db/ids';
 import { doseLogs, schedules, supplements, type NewSupplement, type Supplement } from '@/db/schema';
-import type { DoseUnit, SupplementForm, SupplementType } from '@/db/types';
+import type { DoseUnit, DrawDisplay, SupplementForm, SupplementType } from '@/db/types';
 
 export type SupplementInput = {
   name: string;
@@ -17,6 +17,7 @@ export type SupplementInput = {
   notes?: string | null;
   vialMg?: number | null;
   bacMl?: number | null;
+  drawDisplay?: DrawDisplay;
 };
 
 export function listSupplements(options: { archived?: boolean } = {}): Supplement[] {
@@ -50,6 +51,7 @@ export function createSupplement(input: SupplementInput): Supplement {
     notes: input.notes?.trim() || null,
     vialMg: input.type === 'peptide' ? input.vialMg ?? null : null,
     bacMl: input.type === 'peptide' ? input.bacMl ?? null : null,
+    drawDisplay: input.drawDisplay ?? 'units',
     archived: false,
     createdAt: Date.now(),
   };
@@ -72,6 +74,7 @@ export function updateSupplement(id: string, patch: Partial<SupplementInput>): S
       ...(patch.notes !== undefined ? { notes: patch.notes?.trim() || null } : {}),
       ...(patch.vialMg !== undefined ? { vialMg: patch.vialMg } : {}),
       ...(patch.bacMl !== undefined ? { bacMl: patch.bacMl } : {}),
+      ...(patch.drawDisplay !== undefined ? { drawDisplay: patch.drawDisplay } : {}),
       ...(patch.type !== undefined && patch.type !== 'peptide' ? { vialMg: null, bacMl: null } : {}),
     })
     .where(eq(supplements.id, id))

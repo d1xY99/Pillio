@@ -9,6 +9,7 @@ export type Supplement = {
   notes: string | null;
   vialMg: number | null;
   bacMl: number | null;
+  drawDisplay: 'units' | 'ml';
   archived: boolean;
   createdAt: number;
 };
@@ -92,6 +93,7 @@ export function supplement(row: any): Supplement {
     notes: row.notes ?? null,
     vialMg: row.vial_mg == null ? null : Number(row.vial_mg),
     bacMl: row.bac_ml == null ? null : Number(row.bac_ml),
+    drawDisplay: row.draw_display === 'ml' ? 'ml' : 'units',
     archived: Boolean(row.archived),
     createdAt: Number(row.created_at),
   };

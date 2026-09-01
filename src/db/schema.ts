@@ -13,6 +13,7 @@ export const supplements = sqliteTable(
     notes: text('notes'),
     vialMg: real('vial_mg'),
     bacMl: real('bac_ml'),
+    drawDisplay: text('draw_display').notNull().default('units'),
     archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
     createdAt: integer('created_at').notNull(),
   },

@@ -49,7 +49,13 @@ export function SupplementRow({
           <ThemedText type="callout" themeColor="textSecondary">
             {[
               formatDose(item.defaultAmount, item.defaultUnit),
-              formatPeptideDraw(item.vialMg, item.bacMl, item.defaultAmount, item.defaultUnit),
+              formatPeptideDraw(
+                item.vialMg,
+                item.bacMl,
+                item.defaultAmount,
+                item.defaultUnit,
+                item.drawDisplay === 'ml' ? 'ml' : 'units',
+              ),
               FORM_LABELS[item.form as SupplementForm],
               status,
             ]

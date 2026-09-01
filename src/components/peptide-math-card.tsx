@@ -34,7 +34,12 @@ export function PeptideMathCard({
   bacMl?: number | null;
   doseAmount: number;
   doseUnit: string;
-  onSave?: (next: { vialMg: number; bacMl: number }) => void;
+  onSave?: (next: {
+    vialMg: number;
+    bacMl: number;
+    defaultAmount: number;
+    defaultUnit: DoseMass;
+  }) => void;
 }) {
   const theme = useTheme();
   const [vial, setVial] = useState(vialMg != null ? String(vialMg) : '');
@@ -65,7 +70,13 @@ export function PeptideMathCard({
       }),
     [vial, bac, dose, unit],
   );
-  const dirty = Number(vial) !== Number(vialMg) || Number(bac) !== Number(bacMl);
+  const savedUnit = initialUnit(doseUnit);
+  const savedDose = amountInUnit(doseAmount, doseUnit, unit);
+  const dirty =
+    Number(vial) !== Number(vialMg) ||
+    Number(bac) !== Number(bacMl) ||
+    unit !== savedUnit ||
+    Number(dose) !== savedDose;
 
   function switchUnit(next: DoseMass) {
     if (next === unit) return;
@@ -148,7 +159,12 @@ export function PeptideMathCard({
           disabled={!mix.ok || !dirty}
           onPress={() => {
             if (!mix.ok) return;
-            onSave({ vialMg: Number(vial), bacMl: Number(bac) });
+            onSave({
+              vialMg: Number(vial),
+              bacMl: Number(bac),
+              defaultAmount: Number(dose),
+              defaultUnit: unit,
+            });
           }}
         />
       ) : null}

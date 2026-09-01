@@ -14,7 +14,13 @@ import { formatTimeMinutes } from '@/domain/time';
 import { useTheme } from '@/hooks/use-theme';
 
 function formatDoseLine(item: TodayDose, timeMinutes: number, taken: boolean) {
-  const draw = formatPeptideDraw(item.supplement.vialMg, item.supplement.bacMl, item.amount, item.unit);
+  const draw = formatPeptideDraw(
+    item.supplement.vialMg,
+    item.supplement.bacMl,
+    item.amount,
+    item.unit,
+    item.supplement.drawDisplay === 'ml' ? 'ml' : 'units',
+  );
   const bits = [formatDose(item.amount, item.unit)];
   if (draw) bits.push(draw);
   bits.push(formatTimeMinutes(timeMinutes));

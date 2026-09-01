@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { useLiveQuery } from '@/db/live';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -133,9 +133,44 @@ export default function SupplementDetailScreen() {
           <TypeBadge type={item.type as SupplementType} />
           <ThemedText type="display">{formatDose(item.defaultAmount, item.defaultUnit)}</ThemedText>
           {item.type === 'peptide' ? (
-            <ThemedText type="headline" themeColor="accent">
-              {formatPeptideDraw(item.vialMg, item.bacMl, item.defaultAmount, item.defaultUnit) ?? 'Set vial mix'}
-            </ThemedText>
+            <View style={styles.drawRow}>
+              <ThemedText type="headline" themeColor="accent">
+                {formatPeptideDraw(
+                  item.vialMg,
+                  item.bacMl,
+                  item.defaultAmount,
+                  item.defaultUnit,
+                  item.drawDisplay === 'ml' ? 'ml' : 'units',
+                ) ?? 'Set vial mix'}
+              </ThemedText>
+              {item.vialMg != null && item.bacMl != null ? (
+                <View style={styles.drawSwitch}>
+                  {(['units', 'ml'] as const).map((option) => {
+                    const on = (item.drawDisplay === 'ml' ? 'ml' : 'units') === option;
+                    return (
+                      <Pressable
+                        key={option}
+                        onPress={() => {
+                          if (on) return;
+                          updateSupplement(item.id, { drawDisplay: option });
+                          void apiPatch(`/stack/${item.id}`, { drawDisplay: option }).catch(() => undefined);
+                        }}
+                        style={[
+                          styles.drawChip,
+                          {
+                            backgroundColor: on ? `${theme.accent}33` : 'rgba(255,255,255,0.06)',
+                            borderColor: on ? theme.accent : 'rgba(255,255,255,0.14)',
+                          },
+                        ]}>
+                        <ThemedText type="captionBold" style={{ color: on ? theme.accent : 'rgba(244,247,245,0.7)' }}>
+                          {option}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+            </View>
           ) : null}
           <ThemedText type="callout" themeColor="textSecondary">
             {FORM_LABELS[item.form as SupplementForm]}
@@ -234,6 +269,22 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     minHeight: 220,
     justifyContent: 'flex-end',
+  },
+  drawRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  drawSwitch: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  drawChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
   dot: {
     width: 14,

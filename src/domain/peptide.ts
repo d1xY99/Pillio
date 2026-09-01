@@ -1,3 +1,7 @@
+import type { DrawDisplay } from '@/db/types';
+
+export type { DrawDisplay };
+
 const U100_UNITS_PER_ML = 100;
 
 export type PeptideMixInput = {
@@ -68,13 +72,20 @@ export function amountInUnit(amount: number, fromUnit: string, toUnit: 'mg' | 'm
   return toUnit === 'mg' ? mcg / 1000 : mcg;
 }
 
+export function formatVolumeMl(ml: number): string {
+  const text = ml < 0.1 ? ml.toFixed(3) : ml.toFixed(2);
+  return `${text.replace(/0+$/, '').replace(/\.$/, '')} ml`;
+}
+
 export function formatPeptideDraw(
   vialMg?: number | null,
   bacMl?: number | null,
   doseAmount?: number,
   doseUnit?: string,
+  display: DrawDisplay = 'units',
 ): string | null {
   if (vialMg == null || bacMl == null || doseAmount == null || !doseUnit) return null;
   const mix = peptideMix({ vialMg, bacMl, doseAmount, doseUnit });
-  return mix.ok ? mix.unitsLabel : null;
+  if (!mix.ok) return null;
+  return display === 'ml' ? formatVolumeMl(mix.volumeMl) : mix.unitsLabel;
 }
