@@ -3,11 +3,11 @@ import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { GlassCard } from '@/components/glass-card';
+import { InsulinSyringe } from '@/components/insulin-syringe';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { peptideMix } from '@/domain/peptide';
-import { useTheme } from '@/hooks/use-theme';
 
 export function PeptideMathCard({
   vialMg,
@@ -22,7 +22,6 @@ export function PeptideMathCard({
   doseUnit: string;
   onSave?: (next: { vialMg: number; bacMl: number }) => void;
 }) {
-  const theme = useTheme();
   const [vial, setVial] = useState(vialMg != null ? String(vialMg) : '');
   const [bac, setBac] = useState(bacMl != null ? String(bacMl) : '');
   const [dose, setDose] = useState(String(doseAmount));
@@ -52,52 +51,27 @@ export function PeptideMathCard({
   return (
     <GlassCard style={styles.card}>
       <ThemedText type="captionBold" themeColor="textTertiary" style={styles.kicker}>
-        SYRINGE
+        DRAW TO
       </ThemedText>
-      <ThemedText type="callout" themeColor="textSecondary">
-        U-100 insulin syringe · 100 units = 1 ml
-      </ThemedText>
-
       {mix.ok ? (
         <View style={styles.result}>
           <ThemedText type="display">{mix.unitsLabel}</ThemedText>
           <ThemedText type="callout" themeColor="textSecondary">
-            {mix.volumeMl < 0.1 ? mix.volumeMl.toFixed(3) : mix.volumeMl.toFixed(2)} ml ·{' '}
-            {Math.round(mix.mcgPerMl)} mcg/ml
+            U-100 · {mix.volumeMl < 0.1 ? mix.volumeMl.toFixed(3) : mix.volumeMl.toFixed(2)} ml ·{' '}
+            {Math.round(mix.mcgPerMl / 100)} mcg per unit
           </ThemedText>
           {mix.overfill ? (
             <ThemedText type="captionBold" themeColor="danger">
               Over 1 ml — split the draw or use a larger syringe.
             </ThemedText>
           ) : null}
-          <View style={[styles.syringe, { borderColor: theme.border, backgroundColor: theme.background }]}>
-            <View
-              style={[
-                styles.plunger,
-                {
-                  width: `${Math.min(100, Math.max(3, mix.units))}%`,
-                  backgroundColor: mix.overfill ? theme.danger : theme.accent,
-                },
-              ]}
-            />
-          </View>
-          <View style={styles.ticks}>
-            <ThemedText type="caption" themeColor="textTertiary">
-              0
-            </ThemedText>
-            <ThemedText type="caption" themeColor="textTertiary">
-              50
-            </ThemedText>
-            <ThemedText type="caption" themeColor="textTertiary">
-              100
-            </ThemedText>
-          </View>
         </View>
       ) : (
         <ThemedText type="callout" themeColor="textTertiary">
           Enter vial mg, BAC ml, and dose to get units.
         </ThemedText>
       )}
+      <InsulinSyringe units={mix.ok ? mix.units : 0} overfill={mix.ok && mix.overfill} />
 
       <View style={styles.fields}>
         <View style={styles.flex}>
@@ -142,21 +116,6 @@ const styles = StyleSheet.create({
   result: {
     gap: 6,
     paddingVertical: Spacing.two,
-  },
-  syringe: {
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 1,
-    overflow: 'hidden',
-    marginTop: 8,
-  },
-  plunger: {
-    height: 14,
-    borderRadius: 7,
-  },
-  ticks: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
   },
   fields: {
     flexDirection: 'row',
