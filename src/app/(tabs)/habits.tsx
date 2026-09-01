@@ -17,8 +17,11 @@ import { UiIcon } from '@/components/ui-icon';
 import { ART } from '@/constants/art';
 import { HABIT_CATEGORIES, habitCategoryArt } from '@/constants/habits';
 import { Radius, Spacing } from '@/constants/theme';
+import { getDb } from '@/db/client';
 import { subscribeDb } from '@/db/events';
+import { useLiveQuery } from '@/db/live';
 import { listHabits } from '@/db/queries/habits';
+import { habits as habitsTable } from '@/db/schema';
 import { ensureHabitLogs, listTodayHabits, overallHabitStreak, toggleTodayHabit } from '@/domain/habits';
 import { useCloudSlice } from '@/hooks/use-cloud-slice';
 import { useTheme } from '@/hooks/use-theme';
@@ -29,6 +32,7 @@ export default function HabitsScreen() {
   const theme = useTheme();
   const [tick, setTick] = useState(0);
   const [filter, setFilter] = useState<string>('all');
+  const { updatedAt } = useLiveQuery(getDb().select().from(habitsTable), []);
 
   useFocusEffect(
     useCallback(() => {
@@ -45,7 +49,7 @@ export default function HabitsScreen() {
     [],
   );
 
-  const today = useMemo(() => listTodayHabits(), [tick]);
+  const today = useMemo(() => listTodayHabits(), [tick, updatedAt]);
   const filtered = filter === 'all' ? today : today.filter((row) => row.habit.category === filter);
   const archivedOff = listHabits(false);
   const done = today.filter((row) => row.complete).length;
@@ -221,19 +225,20 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   cats: {
-    gap: 10,
+    gap: 6,
     paddingBottom: Spacing.three,
     paddingRight: Spacing.two,
   },
   chip: {
-    width: 108,
-    height: 86,
-    borderRadius: Radius.md,
+    width: 72,
+    height: 56,
+    borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: 'transparent',
     justifyContent: 'flex-end',
-    padding: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 5,
   },
   chipOn: {
     borderColor: '#3EE0B7',
@@ -243,9 +248,11 @@ const styles = StyleSheet.create({
   },
   chipLabel: {
     color: '#F6FAF8',
+    fontSize: 10,
   },
   chipCount: {
     color: 'rgba(244,247,245,0.7)',
+    fontSize: 9,
   },
   list: {
     gap: Spacing.two,

@@ -23,6 +23,12 @@ let syncDepth = 0;
 let clearing: Promise<void> | null = null;
 const pulled = new Set<CloudSlice>();
 const inflight = new Map<CloudSlice, Promise<void>>();
+const pullEpoch: Partial<Record<CloudSlice, number>> = {};
+
+export function keepLocalSlice(slice: CloudSlice) {
+  pulled.add(slice);
+  pullEpoch[slice] = (pullEpoch[slice] ?? 0) + 1;
+}
 
 export function beginCloudQuiet() {
   syncDepth += 1;
@@ -39,6 +45,7 @@ export function schedulePush() {}
 export function resetCloudPullState() {
   pulled.clear();
   inflight.clear();
+  for (const key of Object.keys(pullEpoch) as CloudSlice[]) delete pullEpoch[key];
 }
 
 function wipeSlice(slice: CloudSlice) {
@@ -112,6 +119,7 @@ export async function pullSlice(slice: CloudSlice) {
 
 async function doPullSlice(slice: CloudSlice) {
   if (pulled.has(slice)) return;
+  const epoch = pullEpoch[slice] ?? 0;
   beginCloudQuiet();
   try {
     if (slice === 'stack') {
@@ -123,6 +131,7 @@ async function doPullSlice(slice: CloudSlice) {
         schedules: any[];
         doseLogs: any[];
       }>(`/today?from=${from}&to=${to}&tzOffset=${tz.tzOffset}&now=${tz.now}`);
+      if ((pullEpoch[slice] ?? 0) !== epoch) return;
       wipeSlice('stack');
       const db = getDb();
       insertRows((row) => db.insert(supplements).values(row).run(), data.supplements);
@@ -135,6 +144,7 @@ async function doPullSlice(slice: CloudSlice) {
       const data = await apiGet<{ habits: any[]; logs: any[] }>(
         `/habits?from=${from}&to=${to}&tzOffset=${tz.tzOffset}&now=${tz.now}`,
       );
+      if ((pullEpoch[slice] ?? 0) !== epoch) return;
       wipeSlice('habits');
       const db = getDb();
       insertRows((row) => db.insert(habits).values(row).run(), data.habits);

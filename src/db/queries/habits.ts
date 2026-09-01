@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { apiDelete, apiPatch, apiPost } from '@/api/client';
 import { getDb } from '@/db/client';
 import { notifyDbChanged } from '@/db/events';
+import { keepLocalSlice } from '@/sync/cloud';
 import { createId } from '@/db/ids';
 import { habitLogs, habits, type Habit, type NewHabit } from '@/db/schema';
 
@@ -46,6 +47,7 @@ export function createHabit(input: HabitInput): Habit {
     createdAt: Date.now(),
   };
   getDb().insert(habits).values(row).run();
+  keepLocalSlice('habits');
   notifyDbChanged();
   void apiPost('/habits', row).catch(() => undefined);
   return getHabit(id)!;
@@ -66,6 +68,7 @@ export function updateHabit(id: string, input: HabitInput): void {
     })
     .where(eq(habits.id, id))
     .run();
+  keepLocalSlice('habits');
   notifyDbChanged();
   void apiPatch(`/habits/${id}`, input).catch(() => undefined);
 }

@@ -34,31 +34,30 @@ export function HabitRow({
           style={[
             styles.card,
             {
-              borderColor: item.complete ? `${item.habit.color}88` : theme.border,
+              backgroundColor: theme.surface,
+              borderColor: item.complete ? `${item.habit.color}66` : theme.border,
+              opacity: item.complete ? 0.78 : 1,
             },
           ]}>
-          <Image source={habitCategoryArt(item.habit.category)} style={styles.image} contentFit="cover" />
-          <LinearGradient
-            colors={['rgba(6,7,8,0.15)', 'rgba(6,7,8,0.88)']}
-            style={StyleSheet.absoluteFill}
-          />
           <View style={[styles.accent, { backgroundColor: item.habit.color }]} />
-          <View style={styles.top}>
-            <View style={styles.emojiWrap}>
+          <View style={styles.row}>
+            <View style={styles.thumb}>
+              <Image source={habitCategoryArt(item.habit.category)} style={styles.thumbImage} contentFit="cover" />
+              <LinearGradient colors={['transparent', 'rgba(6,7,8,0.55)']} style={StyleSheet.absoluteFill} />
               <Text style={styles.emoji}>{item.habit.emoji}</Text>
             </View>
-            <View style={styles.badge}>
-              <ThemedText type="captionBold" style={styles.badgeText}>
-                {(category?.label ?? item.habit.category).toUpperCase()}
-              </ThemedText>
-            </View>
-          </View>
-          <View style={styles.bottom}>
             <View style={styles.copy}>
-              <ThemedText type="headline" style={styles.name} numberOfLines={1}>
-                {item.habit.name}
-              </ThemedText>
-              <ThemedText type="caption" style={styles.meta}>
+              <View style={styles.titleRow}>
+                <ThemedText type="headline" numberOfLines={1} style={{ flex: 1 }}>
+                  {item.habit.name}
+                </ThemedText>
+                <View style={[styles.badge, { backgroundColor: `${item.habit.color}22` }]}>
+                  <ThemedText type="captionBold" style={[styles.badgeText, { color: item.habit.color }]}>
+                    {(category?.label ?? item.habit.category).toUpperCase()}
+                  </ThemedText>
+                </View>
+              </View>
+              <ThemedText type="caption" themeColor="textSecondary">
                 {item.total > 1 ? `${item.done}/${item.total} today` : item.complete ? 'Done today' : 'Open today'}
                 {streak > 0 ? ` · ${streak}d streak` : ''}
               </ThemedText>
@@ -69,7 +68,7 @@ export function HabitRow({
                       key={log.id}
                       style={[
                         styles.dot,
-                        { backgroundColor: log.takenAt ? item.habit.color : 'rgba(255,255,255,0.28)' },
+                        { backgroundColor: log.takenAt ? item.habit.color : theme.border },
                       ]}
                     />
                   ))}
@@ -86,16 +85,10 @@ export function HabitRow({
 
 const styles = StyleSheet.create({
   card: {
-    height: 148,
     borderRadius: Radius.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    justifyContent: 'space-between',
-    padding: Spacing.three,
-  },
-  image: {
-    ...StyleSheet.absoluteFill,
-    transform: [{ scale: 1.06 }],
+    minHeight: 76,
   },
   accent: {
     position: 'absolute',
@@ -104,39 +97,41 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 3,
   },
-  top: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: Spacing.two,
+    paddingVertical: 8,
+    paddingRight: Spacing.two,
+    paddingLeft: 8,
   },
-  emojiWrap: {
-    width: 40,
-    height: 40,
+  thumb: {
+    width: 56,
+    height: 56,
     borderRadius: 14,
-    backgroundColor: 'rgba(8,10,12,0.55)',
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emoji: { fontSize: 22 },
+  thumbImage: {
+    ...StyleSheet.absoluteFill,
+  },
+  emoji: { fontSize: 20 },
+  copy: { flex: 1, gap: 2 },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: Radius.full,
-    backgroundColor: 'rgba(8,10,12,0.55)',
   },
   badgeText: {
-    color: 'rgba(246,250,248,0.82)',
-    letterSpacing: 0.8,
-    fontSize: 10,
+    letterSpacing: 0.6,
+    fontSize: 9,
   },
-  bottom: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: Spacing.two,
-  },
-  copy: { flex: 1, gap: 4 },
-  name: { color: '#F6FAF8' },
-  meta: { color: 'rgba(244,247,245,0.72)' },
   dots: { flexDirection: 'row', gap: 4, marginTop: 4 },
-  dot: { width: 7, height: 7, borderRadius: 4 },
+  dot: { width: 6, height: 6, borderRadius: 3 },
 });
