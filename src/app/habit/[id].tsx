@@ -2,10 +2,13 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+
 import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { HABIT_CATEGORIES } from '@/constants/habits';
+import { HABIT_CATEGORIES, habitCategoryArt } from '@/constants/habits';
 import { Radius, Spacing } from '@/constants/theme';
 import { deleteHabit, getHabit, setHabitArchived } from '@/db/queries/habits';
 import { habitStreak } from '@/domain/habits';
@@ -50,12 +53,16 @@ export default function HabitDetailScreen() {
 
   return (
     <Screen>
-      <View style={[styles.hero, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <View style={[styles.emoji, { backgroundColor: `${habit.color}22` }]}>
+      <View style={styles.hero}>
+        <Image source={habitCategoryArt(habit.category)} style={StyleSheet.absoluteFill} contentFit="cover" />
+        <LinearGradient colors={['rgba(6,7,8,0.2)', 'rgba(6,7,8,0.88)']} style={StyleSheet.absoluteFill} />
+        <View style={[styles.emoji, { backgroundColor: `${habit.color}33` }]}>
           <Text style={{ fontSize: 36 }}>{habit.emoji}</Text>
         </View>
-        <ThemedText type="title">{habit.name}</ThemedText>
-        <ThemedText type="callout" themeColor="textSecondary">
+        <ThemedText type="title" style={{ color: '#F6FAF8' }}>
+          {habit.name}
+        </ThemedText>
+        <ThemedText type="callout" style={{ color: 'rgba(244,247,245,0.75)' }}>
           {category} · {habit.frequency === 'daily' ? 'Every day' : habit.frequency === 'weekdays' ? 'Weekdays' : 'Selected days'}
           {habit.timesPerDay > 1 ? ` · ${habit.timesPerDay}× / day` : ''}
         </ThemedText>
@@ -119,9 +126,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
     borderRadius: Radius.lg,
-    borderWidth: 1,
+    overflow: 'hidden',
     padding: Spacing.four,
     marginBottom: Spacing.four,
+    minHeight: 220,
+    justifyContent: 'flex-end',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   emoji: {
     width: 72,

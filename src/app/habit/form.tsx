@@ -2,11 +2,14 @@ import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+
 import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { HABIT_CATEGORIES, HABIT_COLORS, HABIT_EMOJIS } from '@/constants/habits';
+import { HABIT_CATEGORIES, HABIT_COLORS, HABIT_EMOJIS, habitCategoryArt } from '@/constants/habits';
 import { Radius, Spacing } from '@/constants/theme';
 import { createHabit, getHabit, updateHabit } from '@/db/queries/habits';
 import { ensureHabitLogs } from '@/domain/habits';
@@ -107,19 +110,24 @@ export default function HabitFormScreen() {
         <ThemedText type="captionBold" themeColor="textSecondary">
           Category
         </ThemedText>
-        <View style={styles.wrap}>
+        <View style={styles.catGrid}>
           {HABIT_CATEGORIES.map((item) => {
             const active = item.id === category;
             return (
               <Pressable
                 key={item.id}
-                onPress={() => setCategory(item.id)}
-                style={[
-                  styles.chip,
-                  { backgroundColor: active ? theme.accentMuted : theme.surface, borderColor: active ? theme.accent : theme.border },
-                ]}>
-                <ThemedText type="captionBold" style={{ color: active ? theme.accent : theme.textSecondary }}>
+                onPress={() => {
+                  setCategory(item.id);
+                  setColor(HABIT_COLORS[HABIT_CATEGORIES.findIndex((row) => row.id === item.id)] ?? color);
+                }}
+                style={[styles.catCard, active && { borderColor: theme.accent }]}>
+                <Image source={habitCategoryArt(item.id)} style={StyleSheet.absoluteFill} contentFit="cover" />
+                <LinearGradient colors={['transparent', 'rgba(6,7,8,0.92)']} style={StyleSheet.absoluteFill} />
+                <ThemedText type="captionBold" style={styles.catLabel}>
                   {item.label}
+                </ThemedText>
+                <ThemedText type="caption" style={styles.catKicker}>
+                  {item.kicker}
                 </ThemedText>
               </Pressable>
             );
@@ -246,4 +254,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  catGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: Spacing.three,
+  },
+  catCard: {
+    width: '31%',
+    minWidth: 96,
+    flexGrow: 1,
+    height: 88,
+    borderRadius: Radius.md,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    justifyContent: 'flex-end',
+    padding: 8,
+  },
+  catLabel: { color: '#F6FAF8' },
+  catKicker: { color: 'rgba(244,247,245,0.65)' },
 });

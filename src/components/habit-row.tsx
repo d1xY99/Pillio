@@ -1,10 +1,12 @@
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 
 import { CheckButton } from '@/components/check-button';
 import { PressScale } from '@/components/press-scale';
 import { ThemedText } from '@/components/themed-text';
-import { HABIT_CATEGORIES } from '@/constants/habits';
+import { HABIT_CATEGORIES, habitCategoryArt } from '@/constants/habits';
 import { Radius, Spacing } from '@/constants/theme';
 import type { TodayHabit } from '@/domain/habits';
 import { habitStreak } from '@/domain/habits';
@@ -22,51 +24,60 @@ export function HabitRow({
   onPress: () => void;
 }) {
   const theme = useTheme();
-  const category = HABIT_CATEGORIES.find((row) => row.id === item.habit.category)?.label ?? item.habit.category;
+  const category = HABIT_CATEGORIES.find((row) => row.id === item.habit.category);
   const streak = habitStreak(item.habit.id);
 
   return (
-    <Animated.View entering={FadeInRight.delay(60 + index * 50).springify().damping(16)}>
+    <Animated.View entering={FadeInRight.delay(50 + index * 45).springify().damping(16)}>
       <PressScale onPress={onPress}>
         <View
           style={[
-            styles.row,
+            styles.card,
             {
-              backgroundColor: theme.surface,
-              borderColor: item.complete ? `${item.habit.color}66` : theme.border,
-              opacity: item.complete ? 0.72 : 1,
+              borderColor: item.complete ? `${item.habit.color}88` : theme.border,
             },
           ]}>
-          <View style={[styles.stripe, { backgroundColor: item.habit.color }]} />
-          <View style={[styles.emojiWrap, { backgroundColor: `${item.habit.color}22` }]}>
-            <Text style={styles.emoji}>{item.habit.emoji}</Text>
+          <Image source={habitCategoryArt(item.habit.category)} style={styles.image} contentFit="cover" />
+          <LinearGradient
+            colors={['rgba(6,7,8,0.15)', 'rgba(6,7,8,0.88)']}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={[styles.accent, { backgroundColor: item.habit.color }]} />
+          <View style={styles.top}>
+            <View style={styles.emojiWrap}>
+              <Text style={styles.emoji}>{item.habit.emoji}</Text>
+            </View>
+            <View style={styles.badge}>
+              <ThemedText type="captionBold" style={styles.badgeText}>
+                {(category?.label ?? item.habit.category).toUpperCase()}
+              </ThemedText>
+            </View>
           </View>
-          <View style={styles.body}>
-            <ThemedText type="headline" numberOfLines={1}>
-              {item.habit.name}
-            </ThemedText>
-            <ThemedText type="caption" themeColor="textSecondary">
-              {category}
-              {item.total > 1 ? ` · ${item.done}/${item.total}` : ''}
-              {streak > 0 ? ` · ${streak}d streak` : ''}
-            </ThemedText>
-            {item.total > 1 ? (
-              <View style={styles.dots}>
-                {item.logs.map((log) => (
-                  <View
-                    key={log.id}
-                    style={[
-                      styles.dot,
-                      {
-                        backgroundColor: log.takenAt ? item.habit.color : theme.border,
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-            ) : null}
+          <View style={styles.bottom}>
+            <View style={styles.copy}>
+              <ThemedText type="headline" style={styles.name} numberOfLines={1}>
+                {item.habit.name}
+              </ThemedText>
+              <ThemedText type="caption" style={styles.meta}>
+                {item.total > 1 ? `${item.done}/${item.total} today` : item.complete ? 'Done today' : 'Open today'}
+                {streak > 0 ? ` · ${streak}d streak` : ''}
+              </ThemedText>
+              {item.total > 1 ? (
+                <View style={styles.dots}>
+                  {item.logs.map((log) => (
+                    <View
+                      key={log.id}
+                      style={[
+                        styles.dot,
+                        { backgroundColor: log.takenAt ? item.habit.color : 'rgba(255,255,255,0.28)' },
+                      ]}
+                    />
+                  ))}
+                </View>
+              ) : null}
+            </View>
+            <CheckButton checked={item.complete} onPress={onToggle} />
           </View>
-          <CheckButton checked={item.complete} onPress={onToggle} />
         </View>
       </PressScale>
     </Animated.View>
@@ -74,43 +85,58 @@ export function HabitRow({
 }
 
 const styles = StyleSheet.create({
-  row: {
+  card: {
+    height: 148,
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    justifyContent: 'space-between',
+    padding: Spacing.three,
+  },
+  image: {
+    ...StyleSheet.absoluteFill,
+    transform: [{ scale: 1.06 }],
+  },
+  accent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+  },
+  top: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    overflow: 'hidden',
-    minHeight: 84,
-    paddingRight: Spacing.three,
-    gap: Spacing.two,
-  },
-  stripe: {
-    width: 3,
-    alignSelf: 'stretch',
+    justifyContent: 'space-between',
   },
   emojiWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: 'rgba(8,10,12,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: Spacing.two,
   },
-  emoji: {
-    fontSize: 24,
+  emoji: { fontSize: 22 },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+    backgroundColor: 'rgba(8,10,12,0.55)',
   },
-  body: {
-    flex: 1,
-    gap: 4,
+  badgeText: {
+    color: 'rgba(246,250,248,0.82)',
+    letterSpacing: 0.8,
+    fontSize: 10,
   },
-  dots: {
+  bottom: {
     flexDirection: 'row',
-    gap: 4,
-    marginTop: 4,
+    alignItems: 'flex-end',
+    gap: Spacing.two,
   },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
+  copy: { flex: 1, gap: 4 },
+  name: { color: '#F6FAF8' },
+  meta: { color: 'rgba(244,247,245,0.72)' },
+  dots: { flexDirection: 'row', gap: 4, marginTop: 4 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
 });
