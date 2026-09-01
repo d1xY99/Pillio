@@ -117,9 +117,15 @@ const MIGRATION_2 = [
   `CREATE UNIQUE INDEX IF NOT EXISTS habit_logs_habit_occ_uidx ON habit_logs (habit_id, scheduled_for, occurrence)`,
 ];
 
+const MIGRATION_3 = [
+  `ALTER TABLE habits ADD COLUMN reminder_enabled INTEGER NOT NULL DEFAULT 1`,
+  `ALTER TABLE habits ADD COLUMN reminder_minutes INTEGER NOT NULL DEFAULT 540`,
+];
+
 const MIGRATIONS: { version: number; statements: string[] }[] = [
   { version: 1, statements: MIGRATION_1 },
   { version: 2, statements: MIGRATION_2 },
+  { version: 3, statements: MIGRATION_3 },
 ];
 
 export function applySqlMigrations(executor: SqlExecutor) {

@@ -12,6 +12,8 @@ create table if not exists public.habits (
   frequency text not null,
   weekdays_mask integer,
   times_per_day integer not null default 1,
+  reminder_enabled boolean not null default true,
+  reminder_minutes integer not null default 540,
   archived boolean not null default false,
   created_at bigint not null
 );

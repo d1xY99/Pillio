@@ -179,6 +179,8 @@ async function doPullSlice(slice: CloudSlice) {
               frequency: String(row.frequency ?? 'daily'),
               weekdaysMask: row.weekdaysMask == null ? null : Number(row.weekdaysMask),
               timesPerDay: Number(row.timesPerDay ?? 1),
+              reminderEnabled: row.reminderEnabled !== false,
+              reminderMinutes: Number(row.reminderMinutes ?? 540),
               archived: Boolean(row.archived),
               createdAt: Number(row.createdAt ?? Date.now()),
             })

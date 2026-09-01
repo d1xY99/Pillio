@@ -322,7 +322,7 @@ function RemindersPanel() {
       <View style={styles.section}>
         <ThemedText type="callout" themeColor="textSecondary">
           iPhone will not alert from Pillio itself while locked. Use ntfy (free) for lock-screen
-          alerts. Pillio still only pings if the dose is unchecked.
+          alerts. Pillio still only pings if a dose or habit is still open.
         </ThemedText>
         <ThemedText type="captionBold" themeColor="accent">
           Topic: {ntfyTopic || '…'}
@@ -377,7 +377,7 @@ function RemindersPanel() {
   return (
     <View style={styles.section}>
       <ThemedText type="callout" themeColor="textSecondary">
-        Notifications fire at the due time only if a dose is still unchecked.
+        Notifications fire at the due time only if a dose or habit is still open.
       </ThemedText>
       <ThemedText type="captionBold" themeColor="accent">
         Status: {permission === 'granted' ? 'On' : permission === 'denied' ? 'Off' : 'Not set'}

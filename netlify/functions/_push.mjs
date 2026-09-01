@@ -16,7 +16,7 @@ export function shouldAlert(dose, now = Date.now()) {
 
 export function pushPayload(dose) {
   const title = dose.title || 'Pillio';
-  const body = dose.body || 'A dose is still unchecked.';
+  const body = dose.body || 'A dose or habit is still open.';
   return JSON.stringify({
     web_push: 8030,
     notification: {
@@ -33,7 +33,7 @@ export function pushPayload(dose) {
 
 export async function sendPush(subscription, dose, ntfyTopic) {
   const title = dose.title || 'Pillio';
-  const body = dose.body || 'A dose is still unchecked.';
+  const body = dose.body || 'A dose or habit is still open.';
   const jobs = [];
 
   if (subscription?.endpoint) {

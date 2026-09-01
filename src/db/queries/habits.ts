@@ -7,6 +7,12 @@ import { keepLocalSlice } from '@/sync/cloud';
 import { createId } from '@/db/ids';
 import { habitLogs, habits, type Habit, type NewHabit } from '@/db/schema';
 
+function clampReminderMinutes(value?: number | null) {
+  const minutes = Number(value ?? 9 * 60);
+  if (!Number.isFinite(minutes)) return 9 * 60;
+  return Math.min(23 * 60 + 59, Math.max(0, Math.round(minutes)));
+}
+
 export type HabitInput = {
   name: string;
   emoji: string;
@@ -16,6 +22,8 @@ export type HabitInput = {
   frequency: string;
   weekdaysMask?: number | null;
   timesPerDay: number;
+  reminderEnabled?: boolean;
+  reminderMinutes?: number;
 };
 
 export function listHabits(archived = false): Habit[] {
@@ -43,6 +51,8 @@ export function createHabit(input: HabitInput): Habit {
     frequency: input.frequency,
     weekdaysMask: input.weekdaysMask ?? null,
     timesPerDay: Math.min(8, Math.max(1, input.timesPerDay)),
+    reminderEnabled: input.reminderEnabled ?? true,
+    reminderMinutes: clampReminderMinutes(input.reminderMinutes),
     archived: false,
     createdAt: Date.now(),
   };
@@ -50,6 +60,7 @@ export function createHabit(input: HabitInput): Habit {
   keepLocalSlice('habits');
   notifyDbChanged();
   void apiPost('/habits', row).catch(() => undefined);
+  void import('@/notifications/sync').then((mod) => mod.syncDoseReminders()).catch(() => undefined);
   return getHabit(id)!;
 }
 
@@ -65,18 +76,22 @@ export function updateHabit(id: string, input: HabitInput): void {
       frequency: input.frequency,
       weekdaysMask: input.weekdaysMask ?? null,
       timesPerDay: Math.min(8, Math.max(1, input.timesPerDay)),
+      reminderEnabled: input.reminderEnabled ?? true,
+      reminderMinutes: clampReminderMinutes(input.reminderMinutes),
     })
     .where(eq(habits.id, id))
     .run();
   keepLocalSlice('habits');
   notifyDbChanged();
   void apiPatch(`/habits/${id}`, input).catch(() => undefined);
+  void import('@/notifications/sync').then((mod) => mod.syncDoseReminders()).catch(() => undefined);
 }
 
 export function setHabitArchived(id: string, archived: boolean): void {
   getDb().update(habits).set({ archived }).where(eq(habits.id, id)).run();
   notifyDbChanged();
   void apiPatch(`/habits/${id}`, { archived }).catch(() => undefined);
+  void import('@/notifications/sync').then((mod) => mod.syncDoseReminders()).catch(() => undefined);
 }
 
 export function deleteHabit(id: string): void {
@@ -84,6 +99,7 @@ export function deleteHabit(id: string): void {
   getDb().delete(habits).where(eq(habits.id, id)).run();
   notifyDbChanged();
   void apiDelete(`/habits/${id}`).catch(() => undefined);
+  void import('@/notifications/sync').then((mod) => mod.syncDoseReminders()).catch(() => undefined);
 }
 
 export function listHabitLogsOnDay(dayStart: number, dayEnd: number) {
@@ -141,4 +157,5 @@ export function markHabitLog(id: string, taken: boolean): void {
     .run();
   notifyDbChanged();
   void apiPost(`/habits/logs/${id}/${taken ? 'take' : 'undo'}`).catch(() => undefined);
+  void import('@/notifications/sync').then((mod) => mod.syncDoseReminders()).catch(() => undefined);
 }

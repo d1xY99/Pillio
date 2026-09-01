@@ -17,6 +17,8 @@ type HabitRow = {
   frequency: string;
   weekdays_mask: number | null;
   times_per_day: number;
+  reminder_enabled?: boolean;
+  reminder_minutes?: number;
   archived: boolean;
   created_at: number;
 };
@@ -32,6 +34,8 @@ function habit(row: any) {
     frequency: row.frequency,
     weekdaysMask: row.weekdays_mask ?? null,
     timesPerDay: Number(row.times_per_day ?? 1),
+    reminderEnabled: row.reminder_enabled !== false,
+    reminderMinutes: Number(row.reminder_minutes ?? 540),
     archived: Boolean(row.archived),
     createdAt: Number(row.created_at),
   };
@@ -121,6 +125,8 @@ habitsRoutes.post('/', async (c) => {
     frequency: body.frequency || 'daily',
     weekdays_mask: body.weekdaysMask ?? null,
     times_per_day: Number(body.timesPerDay ?? 1),
+    reminder_enabled: body.reminderEnabled !== false,
+    reminder_minutes: Number(body.reminderMinutes ?? 540),
     archived: false,
     created_at: body.createdAt ?? Date.now(),
   });
@@ -139,6 +145,8 @@ habitsRoutes.patch('/:id', async (c) => {
   if (body.frequency !== undefined) patch.frequency = body.frequency;
   if (body.weekdaysMask !== undefined) patch.weekdays_mask = body.weekdaysMask;
   if (body.timesPerDay !== undefined) patch.times_per_day = body.timesPerDay;
+  if (body.reminderEnabled !== undefined) patch.reminder_enabled = Boolean(body.reminderEnabled);
+  if (body.reminderMinutes !== undefined) patch.reminder_minutes = Number(body.reminderMinutes);
   if (body.archived !== undefined) patch.archived = Boolean(body.archived);
   const { error } = await db(c)
     .from('habits')

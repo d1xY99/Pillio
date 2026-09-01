@@ -115,6 +115,8 @@ export const habits = sqliteTable(
     frequency: text('frequency').notNull(),
     weekdaysMask: integer('weekdays_mask'),
     timesPerDay: integer('times_per_day').notNull().default(1),
+    reminderEnabled: integer('reminder_enabled', { mode: 'boolean' }).notNull().default(true),
+    reminderMinutes: integer('reminder_minutes').notNull().default(540),
     archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
     createdAt: integer('created_at').notNull(),
   },

@@ -13,7 +13,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { deleteHabit, getHabit, setHabitArchived } from '@/db/queries/habits';
 import { habitStreak } from '@/domain/habits';
 import { confirmAction } from '@/lib/confirm';
-import { addLocalDays, eachLocalDay, startOfLocalDay } from '@/domain/time';
+import { addLocalDays, eachLocalDay, formatTimeMinutes, startOfLocalDay } from '@/domain/time';
 import { getDb } from '@/db/client';
 import { habitLogs } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -68,6 +68,11 @@ export default function HabitDetailScreen() {
         </ThemedText>
         <ThemedText type="headline" style={{ color: habit.color }}>
           {streak}-day streak
+        </ThemedText>
+        <ThemedText type="callout" style={{ color: 'rgba(244,247,245,0.75)' }}>
+          {habit.reminderEnabled === false
+            ? 'No reminder'
+            : `Reminder · ${formatTimeMinutes(habit.reminderMinutes ?? 9 * 60)}`}
         </ThemedText>
       </View>
 
