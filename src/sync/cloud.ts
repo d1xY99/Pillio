@@ -7,6 +7,8 @@ import {
   bodyWeights,
   doseLogs,
   exercises,
+  habitLogs,
+  habits,
   progressPhotos,
   schedules,
   supplements,
@@ -15,7 +17,7 @@ import {
 } from '@/db/schema';
 import { startOfLocalDay, endOfLocalDay } from '@/domain/time';
 
-export type CloudSlice = 'stack' | 'gym' | 'body';
+export type CloudSlice = 'stack' | 'gym' | 'body' | 'habits';
 
 let syncDepth = 0;
 let clearing: Promise<void> | null = null;
@@ -49,6 +51,9 @@ function wipeSlice(slice: CloudSlice) {
     db.delete(workoutSets).run();
     db.delete(workoutSessions).run();
     db.delete(exercises).where(eq(exercises.isPreset, false)).run();
+  } else if (slice === 'habits') {
+    db.delete(habitLogs).run();
+    db.delete(habits).run();
   } else {
     db.delete(bodyWeights).run();
     db.delete(progressPhotos).run();
@@ -73,6 +78,7 @@ export async function clearLocalUserData() {
       wipeSlice('stack');
       wipeSlice('gym');
       wipeSlice('body');
+      wipeSlice('habits');
       resetCloudPullState();
       await flushLocalPersist();
     } finally {
@@ -122,6 +128,17 @@ async function doPullSlice(slice: CloudSlice) {
       insertRows((row) => db.insert(supplements).values(row).run(), data.supplements);
       insertRows((row) => db.insert(schedules).values(row).run(), data.schedules);
       insertRows((row) => db.insert(doseLogs).values(row).run(), data.doseLogs);
+    } else if (slice === 'habits') {
+      const tz = clientTz();
+      const from = startOfLocalDay(tz.now);
+      const to = endOfLocalDay(tz.now);
+      const data = await apiGet<{ habits: any[]; logs: any[] }>(
+        `/habits?from=${from}&to=${to}&tzOffset=${tz.tzOffset}&now=${tz.now}`,
+      );
+      wipeSlice('habits');
+      const db = getDb();
+      insertRows((row) => db.insert(habits).values(row).run(), data.habits);
+      insertRows((row) => db.insert(habitLogs).values(row).run(), data.logs);
     } else if (slice === 'gym') {
       const data = await apiGet<{ exercises: any[]; sessions: any[]; sets: any[] }>('/train');
       wipeSlice('gym');

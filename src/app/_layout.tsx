@@ -159,6 +159,21 @@ function RootNavigator() {
           }}
         />
         <Stack.Screen
+          name="habit/[id]"
+          options={{
+            headerShown: true,
+            title: 'Habit',
+          }}
+        />
+        <Stack.Screen
+          name="habit/form"
+          options={{
+            headerShown: true,
+            title: 'New habit',
+            presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
           name="workout/[id]"
           options={{
             headerShown: true,

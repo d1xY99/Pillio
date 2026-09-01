@@ -25,6 +25,14 @@ export function TabGlyph({
       </View>
     );
   }
+  if (route === 'habits') {
+    return (
+      <View style={styles.box}>
+        <View style={[styles.habitOuter, { borderColor: color }]} />
+        <View style={[styles.habitCheck, { backgroundColor: color }]} />
+      </View>
+    );
+  }
   if (route === 'train') {
     return (
       <View style={[styles.box, styles.row]}>
@@ -89,5 +97,18 @@ const styles = StyleSheet.create({
   col: {
     width: 4,
     borderRadius: 2,
+  },
+  habitOuter: {
+    width: 16,
+    height: 16,
+    borderRadius: 5,
+    borderWidth: 2,
+  },
+  habitCheck: {
+    position: 'absolute',
+    width: 7,
+    height: 3,
+    borderRadius: 1,
+    transform: [{ rotate: '-40deg' }, { translateY: 1 }],
   },
 });

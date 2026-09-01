@@ -103,6 +103,40 @@ export const bodyWeights = sqliteTable(
   (table) => [index('body_weights_logged_idx').on(table.loggedAt)],
 );
 
+export const habits = sqliteTable(
+  'habits',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    emoji: text('emoji').notNull(),
+    color: text('color').notNull(),
+    category: text('category').notNull(),
+    notes: text('notes'),
+    frequency: text('frequency').notNull(),
+    weekdaysMask: integer('weekdays_mask'),
+    timesPerDay: integer('times_per_day').notNull().default(1),
+    archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [index('habits_archived_idx').on(table.archived)],
+);
+
+export const habitLogs = sqliteTable(
+  'habit_logs',
+  {
+    id: text('id').primaryKey(),
+    habitId: text('habit_id').notNull(),
+    scheduledFor: integer('scheduled_for').notNull(),
+    occurrence: integer('occurrence').notNull().default(0),
+    takenAt: integer('taken_at'),
+    skipped: integer('skipped', { mode: 'boolean' }).notNull().default(false),
+  },
+  (table) => [
+    index('habit_logs_scheduled_idx').on(table.scheduledFor),
+    uniqueIndex('habit_logs_habit_occ_uidx').on(table.habitId, table.scheduledFor, table.occurrence),
+  ],
+);
+
 export const progressPhotos = sqliteTable(
   'progress_photos',
   {
@@ -124,6 +158,8 @@ export const schema = {
   workoutSets,
   bodyWeights,
   progressPhotos,
+  habits,
+  habitLogs,
 };
 
 export type Supplement = typeof supplements.$inferSelect;
@@ -137,3 +173,6 @@ export type WorkoutSession = typeof workoutSessions.$inferSelect;
 export type WorkoutSet = typeof workoutSets.$inferSelect;
 export type BodyWeight = typeof bodyWeights.$inferSelect;
 export type ProgressPhoto = typeof progressPhotos.$inferSelect;
+export type Habit = typeof habits.$inferSelect;
+export type NewHabit = typeof habits.$inferInsert;
+export type HabitLog = typeof habitLogs.$inferSelect;
