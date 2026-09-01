@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 
 import { apiGet, clientTz } from '@/api/client';
+import { readLocalOwner, writeLocalOwner } from '@/api/session';
 import { flushLocalPersist, getDb } from '@/db/client';
 import { notifyDbChanged } from '@/db/events';
 import {
@@ -90,6 +91,7 @@ export async function clearLocalUserData() {
       wipeSlice('body');
       wipeSlice('habits');
       resetCloudPullState();
+      writeLocalOwner(null);
       await flushLocalPersist();
     } finally {
       endCloudQuiet();
@@ -103,8 +105,20 @@ export async function clearLocalUserData() {
   }
 }
 
+export async function adoptUser(userId: string) {
+  const previous = readLocalOwner();
+  resetCloudPullState();
+  if (previous !== userId) {
+    await clearLocalUserData();
+  }
+  writeLocalOwner(userId);
+}
+
 export async function pullFromCloud() {
   await pullSlice('stack');
+  await pullSlice('habits');
+  await pullSlice('gym');
+  await pullSlice('body');
 }
 
 export async function pullSlice(slice: CloudSlice) {
