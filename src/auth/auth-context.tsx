@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 
 import { apiGet, apiPost, isApiConfigured } from '@/api/client';
 import { readSession, writeSession, type ApiSession, type ApiUser } from '@/api/session';
-import { clearLocalUserData, pullFromCloud, resetCloudPullState } from '@/sync/cloud';
+import { adoptUser, clearLocalUserData, pullFromCloud, resetCloudPullState } from '@/sync/cloud';
 
 type AuthContextValue = {
   configured: boolean;
@@ -24,23 +24,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(configured);
   const [hydrating, setHydrating] = useState(false);
   const hydrateLock = useRef<Promise<void> | null>(null);
-  const hydratedUser = useRef<string | null>(null);
 
   async function hydrateFromCloud(uid: string) {
     if (hydrateLock.current) return hydrateLock.current;
-    if (hydratedUser.current === uid) {
-      setHydrating(false);
-      return;
-    }
     setHydrating(true);
     hydrateLock.current = (async () => {
       try {
+        await adoptUser(uid);
         await pullFromCloud();
         const { syncDoseReminders } = await import('@/notifications/sync');
         await syncDoseReminders();
-        hydratedUser.current = uid;
       } catch {
-        // keep local cache
+        // same-user network blip: keep that account's cache
       } finally {
         hydrateLock.current = null;
         setHydrating(false);
@@ -130,7 +125,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch {
           // still leave
         }
-        hydratedUser.current = null;
         resetCloudPullState();
         writeSession(null);
         setSession(null);

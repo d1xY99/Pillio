@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 
 const KEY = 'pillio.auth';
+const OWNER_KEY = 'pillio.localOwner';
 
 export type ApiUser = {
   id: string;
@@ -66,4 +67,15 @@ export function accessToken() {
 
 export function refreshToken() {
   return readSession()?.refresh_token ?? null;
+}
+
+export function readLocalOwner(): string | null {
+  return storage()?.getItem(OWNER_KEY) ?? null;
+}
+
+export function writeLocalOwner(userId: string | null) {
+  const store = storage();
+  if (!store) return;
+  if (!userId) store.removeItem(OWNER_KEY);
+  else store.setItem(OWNER_KEY, userId);
 }
