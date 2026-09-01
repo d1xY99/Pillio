@@ -9,16 +9,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { Button } from '@/components/button';
 import { Heatmap } from '@/components/heatmap';
+import { PeptideMathCard } from '@/components/peptide-math-card';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { TypeBadge } from '@/components/type-badge';
 import { TYPE_ART } from '@/constants/art';
 import { FORM_LABELS, formatDose } from '@/constants/catalog';
+import { formatPeptideDraw } from '@/domain/peptide';
 import { Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
 import { listDoseHistory } from '@/db/queries/doses';
 import { listSchedulesForSupplement } from '@/db/queries/schedules';
-import { deleteSupplement, setSupplementArchived } from '@/db/queries/supplements';
+import { deleteSupplement, setSupplementArchived, updateSupplement } from '@/db/queries/supplements';
+import { apiPatch } from '@/api/client';
 import { doseLogs, supplements } from '@/db/schema';
 import type { SupplementForm, SupplementType } from '@/db/types';
 import { adherenceDays } from '@/domain/adherence';
@@ -129,6 +132,11 @@ export default function SupplementDetailScreen() {
           <View style={[styles.dot, { backgroundColor: item.color }]} />
           <TypeBadge type={item.type as SupplementType} />
           <ThemedText type="display">{formatDose(item.defaultAmount, item.defaultUnit)}</ThemedText>
+          {item.type === 'peptide' ? (
+            <ThemedText type="headline" themeColor="accent">
+              {formatPeptideDraw(item.vialMg, item.bacMl, item.defaultAmount, item.defaultUnit) ?? 'Set vial mix'}
+            </ThemedText>
+          ) : null}
           <ThemedText type="callout" themeColor="textSecondary">
             {FORM_LABELS[item.form as SupplementForm]}
           </ThemedText>
@@ -137,6 +145,19 @@ export default function SupplementDetailScreen() {
           </ThemedText>
         </View>
       </View>
+
+      {item.type === 'peptide' ? (
+        <PeptideMathCard
+          vialMg={item.vialMg}
+          bacMl={item.bacMl}
+          doseAmount={item.defaultAmount}
+          doseUnit={item.defaultUnit}
+          onSave={(next) => {
+            updateSupplement(item.id, next);
+            void apiPatch(`/stack/${item.id}`, next).catch(() => undefined);
+          }}
+        />
+      ) : null}
 
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <ThemedText type="captionBold" themeColor="textTertiary">

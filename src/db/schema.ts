@@ -11,6 +11,8 @@ export const supplements = sqliteTable(
     defaultUnit: text('default_unit').notNull(),
     color: text('color').notNull(),
     notes: text('notes'),
+    vialMg: real('vial_mg'),
+    bacMl: real('bac_ml'),
     archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
     createdAt: integer('created_at').notNull(),
   },
