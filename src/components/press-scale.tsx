@@ -7,11 +7,13 @@ export function PressScale({
   onPress,
   style,
   disabled,
+  accessibilityLabel,
 }: {
   children: ReactNode;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   disabled?: boolean;
+  accessibilityLabel?: string;
 }) {
   const scale = useSharedValue(1);
   const animated = useAnimatedStyle(() => ({
@@ -21,6 +23,8 @@ export function PressScale({
   return (
     <Pressable
       disabled={disabled}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
       onPress={onPress}
       onPressIn={() => {
         scale.value = withSpring(0.975, { damping: 18, stiffness: 420 });

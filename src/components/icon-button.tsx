@@ -17,6 +17,7 @@ export function IconButton({ name, onPress, accessibilityLabel }: IconButtonProp
   return (
     <PressScale
       onPress={onPress}
+      accessibilityLabel={accessibilityLabel}
       style={[
         styles.button,
         { backgroundColor: theme.surface, borderColor: theme.border },

@@ -55,7 +55,11 @@ export function SettingsDrawer() {
   });
 
   return (
-    <View pointerEvents={open ? 'auto' : 'none'} style={[StyleSheet.absoluteFill, styles.layer]}>
+    <View
+      pointerEvents={open ? 'auto' : 'none'}
+      importantForAccessibility={open ? 'yes' : 'no-hide-descendants'}
+      accessibilityElementsHidden={!open}
+      style={[StyleSheet.absoluteFill, styles.layer]}>
       <Pressable style={StyleSheet.absoluteFill} onPress={hide}>
         <Animated.View
           style={[
@@ -79,7 +83,12 @@ export function SettingsDrawer() {
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.header}>
             {panel !== 'menu' ? (
-              <Pressable onPress={() => setPanel('menu')} hitSlop={12} style={styles.iconHit}>
+              <Pressable
+                onPress={() => setPanel('menu')}
+                hitSlop={12}
+                style={styles.iconHit}
+                accessibilityRole="button"
+                accessibilityLabel="Back to menu">
                 <UiIcon name="arrow.left" color={theme.text} size={18} />
               </Pressable>
             ) : (
@@ -94,7 +103,12 @@ export function SettingsDrawer() {
                     ? 'Password'
                     : 'Home Screen'}
             </ThemedText>
-            <Pressable onPress={hide} hitSlop={12} style={styles.iconHit}>
+            <Pressable
+              onPress={hide}
+              hitSlop={12}
+              style={styles.iconHit}
+              accessibilityRole="button"
+              accessibilityLabel="Close menu">
               <UiIcon name="xmark" color={theme.text} size={16} />
             </Pressable>
           </View>
