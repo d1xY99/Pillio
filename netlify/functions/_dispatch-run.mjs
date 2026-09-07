@@ -14,38 +14,26 @@ export async function runDispatch() {
     devices += 1;
 
     const doses = Array.isArray(record.doses) ? record.doses : [];
-    let changed = false;
-    const next = [];
+    const due = doses.filter((dose) => shouldAlert(dose, now));
+    if (due.length === 0) continue;
 
-    for (const dose of doses) {
-      if (!dose?.id || !dose?.at) continue;
-      if (!shouldAlert(dose, now)) {
-        next.push(dose);
-        continue;
-      }
-
-      try {
+    const sentIds = new Set();
+    const results = await Promise.allSettled(
+      due.map(async (dose) => {
         await sendPush(record.subscription, dose, record.ntfyTopic);
-        sent += 1;
-        next.push({ ...dose, lastSent: now });
-        changed = true;
-      } catch (error) {
-        const status = error?.statusCode;
-        if (status === 404 || status === 410) {
-          changed = true;
-          continue;
-        }
-        next.push(dose);
-      }
+        sentIds.add(dose.id);
+      }),
+    );
+    for (const result of results) {
+      if (result.status === 'fulfilled') sent += 1;
     }
 
-    if (changed) {
-      await store.setJSON(blob.key, {
-        ...record,
-        doses: next,
-        updatedAt: Date.now(),
-      });
-    }
+    const next = doses.map((dose) => (sentIds.has(dose.id) ? { ...dose, lastSent: now } : dose));
+    await store.setJSON(blob.key, {
+      ...record,
+      doses: next,
+      updatedAt: Date.now(),
+    });
   }
 
   return { sent, devices };

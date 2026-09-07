@@ -13,4 +13,4 @@ jobs:
         run: |
           curl -fsS -X POST \
             -H "Authorization: Bearer pillio-dispatch-2026" \
-            https://pillioo.netlify.app/.netlify/functions/dispatch
+            https://pillioo.netlify.app/.netlify/functions/dispatch-background
