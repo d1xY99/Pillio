@@ -7,11 +7,24 @@ const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || 'lUKbFuBjIHOhlNLaYezsA59f
 webpush.setVapidDetails('mailto:pillio@local', VAPID_PUBLIC, VAPID_PRIVATE);
 
 export const REPEAT_MS = 15 * 60 * 1000;
+const MAX_OVERDUE_MS = 18 * 60 * 60 * 1000;
+const SEND_TIMEOUT_MS = 4000;
 
 export function shouldAlert(dose, now = Date.now()) {
-  if (!dose?.at || dose.at > now) return false;
+  if (!dose?.id || !dose?.at || dose.at > now) return false;
+  if (now - Number(dose.at) > MAX_OVERDUE_MS) return false;
   if (dose.lastSent && now - Number(dose.lastSent) < REPEAT_MS) return false;
   return true;
+}
+
+function withTimeout(promise, ms) {
+  const abort = AbortSignal.timeout(ms);
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      abort.addEventListener('abort', () => reject(new Error('send timeout')), { once: true });
+    }),
+  ]);
 }
 
 export function pushPayload(dose) {
@@ -38,12 +51,13 @@ export async function sendPush(subscription, dose, ntfyTopic) {
 
   if (subscription?.endpoint) {
     jobs.push(
-      webpush
-        .sendNotification(subscription, pushPayload(dose), {
+      withTimeout(
+        webpush.sendNotification(subscription, pushPayload(dose), {
           TTL: 60 * 60,
           urgency: 'high',
-        })
-        .catch(() => {}),
+        }),
+        SEND_TIMEOUT_MS,
+      ).catch(() => {}),
     );
   }
 
@@ -58,6 +72,7 @@ export async function sendPush(subscription, dose, ntfyTopic) {
           Click: 'https://pillioo.netlify.app/',
         },
         body,
+        signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
       }).then((res) => {
         if (!res.ok) throw new Error(`ntfy ${res.status}`);
       }),
