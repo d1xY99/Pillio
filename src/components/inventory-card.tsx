@@ -19,12 +19,18 @@ export function InventoryCard({ item }: { item: Supplement }) {
 
   const unit = inventoryUnit(item);
   const remaining = item.quantityOnHand;
+  const packSize = item.inventoryPackSize;
+  const byPack = packSize != null && packSize > 0;
+  const per = packSize ?? 0;
+  const container = item.type === 'peptide' ? 'vial' : 'container';
+  const count = byPack && remaining != null ? Math.round((remaining / per) * 1000) / 1000 : null;
   const low = isLowStock(item);
 
   function addRefill() {
     const parsed = Number(refill);
     if (!Number.isFinite(parsed) || parsed <= 0) return;
-    setInventoryQuantity(item.id, Math.round(((remaining ?? 0) + parsed) * 1000) / 1000);
+    const amount = byPack ? parsed * per : parsed;
+    setInventoryQuantity(item.id, Math.round(((remaining ?? 0) + amount) * 1000) / 1000);
     setRefill('');
   }
 
@@ -48,8 +54,17 @@ export function InventoryCard({ item }: { item: Supplement }) {
       </View>
 
       <ThemedText type="title">
-        {remaining == null ? 'Not set' : formatDose(remaining, unit)}
+        {byPack
+          ? `${count ?? 0} ${container}s`
+          : remaining == null
+            ? 'Not set'
+            : formatDose(remaining, unit)}
       </ThemedText>
+      {byPack ? (
+        <ThemedText type="caption" themeColor="textSecondary">
+          {`${formatDose(remaining ?? 0, unit)} total · ${formatDose(per, unit)} per ${container}`}
+        </ThemedText>
+      ) : null}
       <ThemedText type="caption" themeColor="textSecondary">
         {item.lowStockThreshold == null
           ? 'No alert threshold set.'
@@ -60,11 +75,11 @@ export function InventoryCard({ item }: { item: Supplement }) {
       <View style={styles.refillRow}>
         <View style={styles.refillField}>
           <TextField
-            label={`Add (${unit})`}
+            label={byPack ? `Add (${container}s)` : `Add (${unit})`}
             value={refill}
             onChangeText={setRefill}
             keyboardType="decimal-pad"
-            placeholder="30"
+            placeholder={byPack ? '1' : '30'}
           />
         </View>
         <PressScale

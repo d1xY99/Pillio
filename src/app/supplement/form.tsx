@@ -89,6 +89,7 @@ export default function SupplementFormScreen() {
                   trackInventory: existing.trackInventory,
                   quantityOnHand: existing.quantityOnHand,
                   inventoryUnit: existing.inventoryUnit as SupplementInput['inventoryUnit'],
+                  inventoryPackSize: existing.inventoryPackSize,
                   lowStockThreshold: existing.lowStockThreshold,
                   refillReminder: existing.refillReminder,
                 }

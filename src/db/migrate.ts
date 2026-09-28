@@ -153,6 +153,8 @@ const MIGRATION_7 = [
   `ALTER TABLE supplements ADD COLUMN refill_reminder INTEGER NOT NULL DEFAULT 1`,
 ];
 
+const MIGRATION_8 = [`ALTER TABLE supplements ADD COLUMN inventory_pack_size REAL`];
+
 const MIGRATIONS: { version: number; statements: string[] }[] = [
   { version: 1, statements: MIGRATION_1 },
   { version: 2, statements: MIGRATION_2 },
@@ -161,6 +163,7 @@ const MIGRATIONS: { version: number; statements: string[] }[] = [
   { version: 5, statements: MIGRATION_5 },
   { version: 6, statements: MIGRATION_6 },
   { version: 7, statements: MIGRATION_7 },
+  { version: 8, statements: MIGRATION_8 },
 ];
 
 export function applySqlMigrations(executor: SqlExecutor) {

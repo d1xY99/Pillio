@@ -23,6 +23,7 @@ create table if not exists public.supplements (
   track_inventory boolean not null default false,
   quantity_on_hand double precision,
   inventory_unit text,
+  inventory_pack_size double precision,
   low_stock_threshold double precision,
   refill_reminder boolean not null default true,
   archived boolean not null default false,

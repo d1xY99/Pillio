@@ -75,6 +75,8 @@ stackRoutes.post('/', async (c) => {
     track_inventory: Boolean(body.trackInventory),
     quantity_on_hand: body.quantityOnHand == null || body.quantityOnHand === '' ? null : Number(body.quantityOnHand),
     inventory_unit: body.inventoryUnit ?? null,
+    inventory_pack_size:
+      body.inventoryPackSize == null || body.inventoryPackSize === '' ? null : Number(body.inventoryPackSize),
     low_stock_threshold:
       body.lowStockThreshold == null || body.lowStockThreshold === '' ? null : Number(body.lowStockThreshold),
     refill_reminder: body.refillReminder !== false,
@@ -109,6 +111,10 @@ stackRoutes.patch('/:id', async (c) => {
       body.quantityOnHand == null || body.quantityOnHand === '' ? null : Number(body.quantityOnHand);
   }
   if (body.inventoryUnit !== undefined) patch.inventory_unit = body.inventoryUnit ?? null;
+  if (body.inventoryPackSize !== undefined) {
+    patch.inventory_pack_size =
+      body.inventoryPackSize == null || body.inventoryPackSize === '' ? null : Number(body.inventoryPackSize);
+  }
   if (body.lowStockThreshold !== undefined) {
     patch.low_stock_threshold =
       body.lowStockThreshold == null || body.lowStockThreshold === '' ? null : Number(body.lowStockThreshold);

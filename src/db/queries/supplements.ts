@@ -21,6 +21,7 @@ export type SupplementInput = {
   trackInventory?: boolean;
   quantityOnHand?: number | null;
   inventoryUnit?: DoseUnit | null;
+  inventoryPackSize?: number | null;
   lowStockThreshold?: number | null;
   refillReminder?: boolean;
 };
@@ -60,6 +61,7 @@ export function createSupplement(input: SupplementInput): Supplement {
     trackInventory: input.trackInventory ?? false,
     quantityOnHand: input.trackInventory ? input.quantityOnHand ?? null : null,
     inventoryUnit: input.trackInventory ? input.inventoryUnit ?? input.defaultUnit : null,
+    inventoryPackSize: input.trackInventory ? input.inventoryPackSize ?? null : null,
     lowStockThreshold: input.trackInventory ? input.lowStockThreshold ?? null : null,
     refillReminder: input.trackInventory ? input.refillReminder ?? true : false,
     archived: false,
@@ -88,10 +90,17 @@ export function updateSupplement(id: string, patch: Partial<SupplementInput>): S
       ...(patch.trackInventory !== undefined ? { trackInventory: patch.trackInventory } : {}),
       ...(patch.quantityOnHand !== undefined ? { quantityOnHand: patch.quantityOnHand } : {}),
       ...(patch.inventoryUnit !== undefined ? { inventoryUnit: patch.inventoryUnit } : {}),
+      ...(patch.inventoryPackSize !== undefined ? { inventoryPackSize: patch.inventoryPackSize } : {}),
       ...(patch.lowStockThreshold !== undefined ? { lowStockThreshold: patch.lowStockThreshold } : {}),
       ...(patch.refillReminder !== undefined ? { refillReminder: patch.refillReminder } : {}),
       ...(patch.trackInventory === false
-        ? { quantityOnHand: null, inventoryUnit: null, lowStockThreshold: null, refillReminder: false }
+        ? {
+            quantityOnHand: null,
+            inventoryUnit: null,
+            inventoryPackSize: null,
+            lowStockThreshold: null,
+            refillReminder: false,
+          }
         : {}),
       ...(patch.type !== undefined && patch.type !== 'peptide' ? { vialMg: null, bacMl: null } : {}),
     })

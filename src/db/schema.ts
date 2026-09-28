@@ -17,6 +17,7 @@ export const supplements = sqliteTable(
     trackInventory: integer('track_inventory', { mode: 'boolean' }).notNull().default(false),
     quantityOnHand: real('quantity_on_hand'),
     inventoryUnit: text('inventory_unit'),
+    inventoryPackSize: real('inventory_pack_size'),
     lowStockThreshold: real('low_stock_threshold'),
     refillReminder: integer('refill_reminder', { mode: 'boolean' }).notNull().default(true),
     archived: integer('archived', { mode: 'boolean' }).notNull().default(false),

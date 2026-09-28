@@ -45,8 +45,25 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit, children 
   const [vialMg, setVialMg] = useState(initial?.vialMg != null ? String(initial.vialMg) : '');
   const [bacMl, setBacMl] = useState(initial?.bacMl != null ? String(initial.bacMl) : '');
   const [trackInventory, setTrackInventory] = useState(initial?.trackInventory ?? false);
+  const [inventoryMode, setInventoryMode] = useState<'amount' | 'vials'>(
+    initial?.inventoryPackSize != null && initial.inventoryPackSize > 0 ? 'vials' : 'amount',
+  );
   const [quantity, setQuantity] = useState(
     initial?.quantityOnHand != null ? String(initial.quantityOnHand) : '',
+  );
+  const [vialCount, setVialCount] = useState(
+    initial?.inventoryPackSize != null &&
+      initial.inventoryPackSize > 0 &&
+      initial.quantityOnHand != null
+      ? String(Math.round((initial.quantityOnHand / initial.inventoryPackSize) * 1000) / 1000)
+      : '',
+  );
+  const [packSize, setPackSize] = useState(
+    initial?.inventoryPackSize != null
+      ? String(initial.inventoryPackSize)
+      : initial?.type === 'peptide' && initial?.vialMg != null
+        ? String(initial.vialMg)
+        : '',
   );
   const [threshold, setThreshold] = useState(
     initial?.lowStockThreshold != null ? String(initial.lowStockThreshold) : '',
@@ -77,6 +94,19 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit, children 
       return;
     }
 
+    let quantityOnHand: number | null = null;
+    let inventoryPackSize: number | null = null;
+    if (trackInventory) {
+      if (inventoryMode === 'vials') {
+        const per = parseOptional(packSize);
+        const count = parseQuantity(vialCount);
+        inventoryPackSize = per;
+        quantityOnHand = per != null && count != null ? Math.round(count * per * 1000) / 1000 : null;
+      } else {
+        quantityOnHand = parseQuantity(quantity);
+      }
+    }
+
     onSubmit({
       name: trimmed,
       type,
@@ -88,8 +118,9 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit, children 
       vialMg: type === 'peptide' ? parseOptional(vialMg) : null,
       bacMl: type === 'peptide' ? parseOptional(bacMl) : null,
       trackInventory,
-      quantityOnHand: trackInventory ? parseQuantity(quantity) : null,
+      quantityOnHand,
       inventoryUnit: trackInventory ? unit : null,
+      inventoryPackSize,
       lowStockThreshold: trackInventory ? parseQuantity(threshold) : null,
       refillReminder: trackInventory ? refillReminder : false,
     });
@@ -178,26 +209,52 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit, children 
 
       {trackInventory ? (
         <View style={styles.mix}>
-          <View style={styles.mixRow}>
-            <View style={styles.flex}>
-              <TextField
-                label={`Remaining (${unit})`}
-                value={quantity}
-                onChangeText={setQuantity}
-                keyboardType="decimal-pad"
-                placeholder="60"
-              />
+          <ChoiceChips
+            options={['amount', 'vials'] as const}
+            value={inventoryMode}
+            labels={{ amount: 'By amount', vials: type === 'peptide' ? 'By vials' : 'By container' }}
+            onChange={setInventoryMode}
+          />
+
+          {inventoryMode === 'vials' ? (
+            <View style={styles.mixRow}>
+              <View style={styles.flex}>
+                <TextField
+                  label={type === 'peptide' ? 'Vials' : 'Containers'}
+                  value={vialCount}
+                  onChangeText={setVialCount}
+                  keyboardType="decimal-pad"
+                  placeholder="10"
+                />
+              </View>
+              <View style={styles.flex}>
+                <TextField
+                  label={`Amount per ${type === 'peptide' ? 'vial' : 'container'} (${unit})`}
+                  value={packSize}
+                  onChangeText={setPackSize}
+                  keyboardType="decimal-pad"
+                  placeholder="10"
+                />
+              </View>
             </View>
-            <View style={styles.flex}>
-              <TextField
-                label={`Alert below (${unit})`}
-                value={threshold}
-                onChangeText={setThreshold}
-                keyboardType="decimal-pad"
-                placeholder="10"
-              />
-            </View>
-          </View>
+          ) : (
+            <TextField
+              label={`Remaining (${unit})`}
+              value={quantity}
+              onChangeText={setQuantity}
+              keyboardType="decimal-pad"
+              placeholder="60"
+            />
+          )}
+
+          <TextField
+            label={`Alert below (${unit})`}
+            value={threshold}
+            onChangeText={setThreshold}
+            keyboardType="decimal-pad"
+            placeholder="10"
+          />
+
           <View style={styles.toggleRow}>
             <View style={styles.flex}>
               <ThemedText type="body">Refill reminder</ThemedText>

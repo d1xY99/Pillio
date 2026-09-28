@@ -92,20 +92,36 @@ export default function InventoryScreen() {
 
 function TrackedRow({ item }: { item: Supplement }) {
   const theme = useTheme();
-  const [value, setValue] = useState(
-    item.quantityOnHand != null ? String(item.quantityOnHand) : '',
-  );
-
-  useEffect(() => {
-    setValue(item.quantityOnHand != null ? String(item.quantityOnHand) : '');
-  }, [item.quantityOnHand]);
-
   const unit = inventoryUnit(item);
-  const step = item.defaultAmount > 0 ? item.defaultAmount : 1;
+  const packSize = item.inventoryPackSize;
+  const byPack = packSize != null && packSize > 0;
+  const per = packSize ?? 0;
+  const container = item.type === 'peptide' ? 'vial' : 'container';
+  const total = item.quantityOnHand;
+  const count = byPack && total != null ? Math.round((total / per) * 1000) / 1000 : null;
   const low = isLowStock(item);
+
+  const displayValue = byPack
+    ? count != null
+      ? String(count)
+      : ''
+    : total != null
+      ? String(total)
+      : '';
+
+  const [value, setValue] = useState(displayValue);
+  useEffect(() => {
+    setValue(displayValue);
+  }, [displayValue]);
 
   function save() {
     const trimmed = value.trim();
+    if (byPack) {
+      const nextCount = trimmed === '' ? 0 : Number(trimmed);
+      if (!Number.isFinite(nextCount) || nextCount < 0) return;
+      setInventoryQuantity(item.id, Math.round(nextCount * per * 1000) / 1000);
+      return;
+    }
     if (!trimmed) {
       setInventoryQuantity(item.id, null);
       return;
@@ -116,7 +132,13 @@ function TrackedRow({ item }: { item: Supplement }) {
   }
 
   function bump(sign: 1 | -1) {
-    const base = item.quantityOnHand ?? 0;
+    if (byPack) {
+      const base = total ?? 0;
+      setInventoryQuantity(item.id, Math.max(0, Math.round((base + sign * per) * 1000) / 1000));
+      return;
+    }
+    const step = item.defaultAmount > 0 ? item.defaultAmount : 1;
+    const base = total ?? 0;
     setInventoryQuantity(item.id, Math.max(0, Math.round((base + sign * step) * 1000) / 1000));
   }
 
@@ -146,8 +168,17 @@ function TrackedRow({ item }: { item: Supplement }) {
         </View>
 
         <ThemedText type="title">
-          {item.quantityOnHand == null ? 'Not set' : formatDose(item.quantityOnHand, unit)}
+          {byPack
+            ? `${count ?? 0} ${container}s`
+            : total == null
+              ? 'Not set'
+              : formatDose(total, unit)}
         </ThemedText>
+        {byPack ? (
+          <ThemedText type="caption" themeColor="textSecondary">
+            {`${formatDose(total ?? 0, unit)} total · ${formatDose(per, unit)} per ${container}`}
+          </ThemedText>
+        ) : null}
         <ThemedText type="caption" themeColor="textSecondary">
           {item.lowStockThreshold == null
             ? 'No alert threshold set.'
@@ -158,11 +189,11 @@ function TrackedRow({ item }: { item: Supplement }) {
           <PressScale
             onPress={() => bump(-1)}
             style={[styles.stepButton, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}>
-            <ThemedText type="headline">−</ThemedText>
+            <StepGlyph label="−" color={theme.text} />
           </PressScale>
           <View style={styles.field}>
             <TextField
-              label={`Current (${unit})`}
+              label={byPack ? `${container}s` : `Current (${unit})`}
               value={value}
               onChangeText={setValue}
               keyboardType="decimal-pad"
@@ -172,7 +203,7 @@ function TrackedRow({ item }: { item: Supplement }) {
           <PressScale
             onPress={() => bump(1)}
             style={[styles.stepButton, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}>
-            <ThemedText type="headline">+</ThemedText>
+            <StepGlyph label="+" color={theme.text} />
           </PressScale>
           <PressScale
             onPress={save}
@@ -183,6 +214,14 @@ function TrackedRow({ item }: { item: Supplement }) {
           </PressScale>
         </View>
       </View>
+    </View>
+  );
+}
+
+function StepGlyph({ label, color }: { label: string; color: string }) {
+  return (
+    <View style={styles.glyphBox}>
+      <ThemedText style={[styles.glyph, { color }]}>{label}</ThemedText>
     </View>
   );
 }
@@ -294,6 +333,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  glyphBox: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glyph: {
+    fontSize: 26,
+    lineHeight: 26,
+    fontWeight: '600',
+    textAlign: 'center',
+    includeFontPadding: false,
   },
   field: {
     flex: 1,

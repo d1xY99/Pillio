@@ -13,6 +13,7 @@ export type Supplement = {
   trackInventory: boolean;
   quantityOnHand: number | null;
   inventoryUnit: string | null;
+  inventoryPackSize: number | null;
   lowStockThreshold: number | null;
   refillReminder: boolean;
   archived: boolean;
@@ -102,6 +103,7 @@ export function supplement(row: any): Supplement {
     trackInventory: Boolean(row.track_inventory),
     quantityOnHand: row.quantity_on_hand == null ? null : Number(row.quantity_on_hand),
     inventoryUnit: row.inventory_unit ?? null,
+    inventoryPackSize: row.inventory_pack_size == null ? null : Number(row.inventory_pack_size),
     lowStockThreshold: row.low_stock_threshold == null ? null : Number(row.low_stock_threshold),
     refillReminder: row.refill_reminder !== false,
     archived: Boolean(row.archived),
