@@ -135,14 +135,17 @@ export function listRecentSupplements(): Supplement[] {
     .all();
 }
 
-export function setInventoryQuantity(supplementId: string, quantity: number | null): void {
-  getDb()
-    .update(supplements)
-    .set({ quantityOnHand: quantity })
-    .where(eq(supplements.id, supplementId))
-    .run();
+export function setInventory(
+  supplementId: string,
+  patch: { quantityOnHand?: number | null; inventoryPackSize?: number | null },
+): void {
+  getDb().update(supplements).set(patch).where(eq(supplements.id, supplementId)).run();
   notifyDbChanged();
-  void apiPatch(`/stack/${supplementId}`, { quantityOnHand: quantity }).catch(() => undefined);
+  void apiPatch(`/stack/${supplementId}`, patch).catch(() => undefined);
+}
+
+export function setInventoryQuantity(supplementId: string, quantity: number | null): void {
+  setInventory(supplementId, { quantityOnHand: quantity });
 }
 
 export function adjustInventory(supplementId: string, delta: number): void {

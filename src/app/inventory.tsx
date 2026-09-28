@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { apiPatch } from '@/api/client';
+import { ChoiceChips } from '@/components/choice-chips';
 import { EmptyState } from '@/components/empty-state';
 import { FadeIn } from '@/components/fade-in';
 import { PressScale } from '@/components/press-scale';
@@ -14,7 +15,7 @@ import { formatDose } from '@/constants/catalog';
 import { Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
 import { useLiveQuery } from '@/db/live';
-import { setInventoryQuantity, updateSupplement } from '@/db/queries/supplements';
+import { setInventory, updateSupplement } from '@/db/queries/supplements';
 import { supplements, type Supplement } from '@/db/schema';
 import type { DoseUnit } from '@/db/types';
 import { inventoryUnit, isLowStock } from '@/domain/inventory';
@@ -93,53 +94,71 @@ export default function InventoryScreen() {
 function TrackedRow({ item }: { item: Supplement }) {
   const theme = useTheme();
   const unit = inventoryUnit(item);
-  const packSize = item.inventoryPackSize;
-  const byPack = packSize != null && packSize > 0;
-  const per = packSize ?? 0;
   const container = item.type === 'peptide' ? 'vial' : 'container';
   const total = item.quantityOnHand;
-  const count = byPack && total != null ? Math.round((total / per) * 1000) / 1000 : null;
+  const savedPack = item.inventoryPackSize != null && item.inventoryPackSize > 0;
+  const savedCount = savedPack && total != null ? Math.round((total / item.inventoryPackSize!) * 1000) / 1000 : null;
+
+  const [mode, setMode] = useState<'amount' | 'vials'>(savedPack ? 'vials' : 'amount');
+  const [per, setPer] = useState(
+    item.inventoryPackSize != null
+      ? String(item.inventoryPackSize)
+      : String(item.vialMg ?? item.defaultAmount ?? ''),
+  );
+  const [amount, setAmount] = useState(total != null ? String(total) : '');
+  const [count, setCount] = useState(savedCount != null ? String(savedCount) : '');
+
+  useEffect(() => {
+    setAmount(total != null ? String(total) : '');
+    if (item.inventoryPackSize != null && item.inventoryPackSize > 0) {
+      setPer(String(item.inventoryPackSize));
+      setCount(total != null ? String(Math.round((total / item.inventoryPackSize) * 1000) / 1000) : '');
+    }
+  }, [total, item.inventoryPackSize]);
+
   const low = isLowStock(item);
 
-  const displayValue = byPack
-    ? count != null
-      ? String(count)
-      : ''
-    : total != null
-      ? String(total)
-      : '';
-
-  const [value, setValue] = useState(displayValue);
-  useEffect(() => {
-    setValue(displayValue);
-  }, [displayValue]);
-
   function save() {
-    const trimmed = value.trim();
-    if (byPack) {
-      const nextCount = trimmed === '' ? 0 : Number(trimmed);
-      if (!Number.isFinite(nextCount) || nextCount < 0) return;
-      setInventoryQuantity(item.id, Math.round(nextCount * per * 1000) / 1000);
+    if (mode === 'vials') {
+      const parsedPer = Number(per);
+      const parsedCount = count.trim() === '' ? 0 : Number(count);
+      if (!Number.isFinite(parsedPer) || parsedPer <= 0) return;
+      if (!Number.isFinite(parsedCount) || parsedCount < 0) return;
+      setInventory(item.id, {
+        inventoryPackSize: parsedPer,
+        quantityOnHand: Math.round(parsedCount * parsedPer * 1000) / 1000,
+      });
       return;
     }
+    const trimmed = amount.trim();
     if (!trimmed) {
-      setInventoryQuantity(item.id, null);
+      setInventory(item.id, { quantityOnHand: null, inventoryPackSize: null });
       return;
     }
     const parsed = Number(trimmed);
     if (!Number.isFinite(parsed) || parsed < 0) return;
-    setInventoryQuantity(item.id, Math.round(parsed * 1000) / 1000);
+    setInventory(item.id, {
+      quantityOnHand: Math.round(parsed * 1000) / 1000,
+      inventoryPackSize: null,
+    });
   }
 
   function bump(sign: 1 | -1) {
-    if (byPack) {
-      const base = total ?? 0;
-      setInventoryQuantity(item.id, Math.max(0, Math.round((base + sign * per) * 1000) / 1000));
+    const base = total ?? 0;
+    if (mode === 'vials') {
+      const parsedPer = Number(per);
+      if (!Number.isFinite(parsedPer) || parsedPer <= 0) return;
+      const baseCount = savedCount ?? 0;
+      setInventory(item.id, {
+        inventoryPackSize: parsedPer,
+        quantityOnHand: Math.max(0, Math.round((baseCount + sign) * parsedPer * 1000) / 1000),
+      });
       return;
     }
     const step = item.defaultAmount > 0 ? item.defaultAmount : 1;
-    const base = total ?? 0;
-    setInventoryQuantity(item.id, Math.max(0, Math.round((base + sign * step) * 1000) / 1000));
+    setInventory(item.id, {
+      quantityOnHand: Math.max(0, Math.round((base + sign * step) * 1000) / 1000),
+    });
   }
 
   return (
@@ -168,15 +187,15 @@ function TrackedRow({ item }: { item: Supplement }) {
         </View>
 
         <ThemedText type="title">
-          {byPack
-            ? `${count ?? 0} ${container}s`
+          {mode === 'vials'
+            ? `${savedCount ?? 0} ${container}s`
             : total == null
               ? 'Not set'
               : formatDose(total, unit)}
         </ThemedText>
-        {byPack ? (
+        {mode === 'vials' && savedPack ? (
           <ThemedText type="caption" themeColor="textSecondary">
-            {`${formatDose(total ?? 0, unit)} total · ${formatDose(per, unit)} per ${container}`}
+            {`${formatDose(total ?? 0, unit)} total · ${formatDose(item.inventoryPackSize!, unit)} per ${container}`}
           </ThemedText>
         ) : null}
         <ThemedText type="caption" themeColor="textSecondary">
@@ -185,29 +204,57 @@ function TrackedRow({ item }: { item: Supplement }) {
             : `Alert below ${formatDose(item.lowStockThreshold, unit)}.`}
         </ThemedText>
 
+        <ChoiceChips
+          options={['amount', 'vials'] as const}
+          value={mode}
+          labels={{ amount: 'By amount', vials: `By ${container}s` }}
+          onChange={setMode}
+        />
+
+        {mode === 'vials' ? (
+          <View style={styles.mixRow}>
+            <View style={styles.field}>
+              <TextField
+                label={container === 'vial' ? 'Vials' : 'Containers'}
+                value={count}
+                onChangeText={setCount}
+                keyboardType="decimal-pad"
+                placeholder="10"
+              />
+            </View>
+            <View style={styles.field}>
+              <TextField
+                label={`Per ${container} (${unit})`}
+                value={per}
+                onChangeText={setPer}
+                keyboardType="decimal-pad"
+                placeholder="10"
+              />
+            </View>
+          </View>
+        ) : (
+          <TextField
+            label={`Current (${unit})`}
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="decimal-pad"
+            placeholder="0"
+          />
+        )}
+
         <View style={styles.controls}>
           <PressScale
             onPress={() => bump(-1)}
             style={[styles.stepButton, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}>
             <StepGlyph label="−" color={theme.text} />
           </PressScale>
-          <View style={styles.field}>
-            <TextField
-              label={byPack ? `${container}s` : `Current (${unit})`}
-              value={value}
-              onChangeText={setValue}
-              keyboardType="decimal-pad"
-              placeholder="0"
-            />
-          </View>
           <PressScale
             onPress={() => bump(1)}
             style={[styles.stepButton, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}>
             <StepGlyph label="+" color={theme.text} />
           </PressScale>
-          <PressScale
-            onPress={save}
-            style={[styles.saveButton, { backgroundColor: theme.accent }]}>
+          <View style={styles.spacer} />
+          <PressScale onPress={save} style={[styles.saveButton, { backgroundColor: theme.accent }]}>
             <ThemedText type="captionBold" style={styles.saveLabel}>
               Save
             </ThemedText>
@@ -320,11 +367,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     fontSize: 10,
   },
+  mixRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
   controls: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     gap: Spacing.two,
     marginTop: Spacing.two,
+  },
+  spacer: {
+    flex: 1,
   },
   stepButton: {
     width: 52,
