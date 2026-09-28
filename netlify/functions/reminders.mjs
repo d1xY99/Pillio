@@ -15,6 +15,7 @@ export default async (request) => {
   const subscription = body.subscription ?? null;
   const ntfyTopic = typeof body.ntfyTopic === 'string' ? body.ntfyTopic : null;
   const incoming = Array.isArray(body.doses) ? body.doses : [];
+  const incomingRefills = Array.isArray(body.refills) ? body.refills : [];
   const sendTest = Boolean(body.test);
 
   const store = getStore('pillio-reminders');
@@ -24,11 +25,21 @@ export default async (request) => {
       .filter((dose) => dose?.id)
       .map((dose) => [dose.id, dose]),
   );
+  const prevRefillById = Object.fromEntries(
+    (Array.isArray(existing.refills) ? existing.refills : [])
+      .filter((refill) => refill?.id)
+      .map((refill) => [refill.id, refill]),
+  );
 
   const doses = incoming.map((dose) => ({
     ...dose,
     lastSent: prevById[dose.id]?.lastSent,
     waitArmed: prevById[dose.id]?.waitArmed,
+  }));
+
+  const refills = incomingRefills.map((refill) => ({
+    ...refill,
+    lastSent: prevRefillById[refill.id]?.lastSent,
   }));
 
   let sent = 0;
@@ -72,6 +83,7 @@ export default async (request) => {
     subscription,
     ntfyTopic,
     doses,
+    refills,
     updatedAt: Date.now(),
   });
 

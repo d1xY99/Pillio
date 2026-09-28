@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { ChoiceChips } from '@/components/choice-chips';
@@ -44,6 +44,31 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit, children 
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [vialMg, setVialMg] = useState(initial?.vialMg != null ? String(initial.vialMg) : '');
   const [bacMl, setBacMl] = useState(initial?.bacMl != null ? String(initial.bacMl) : '');
+  const [trackInventory, setTrackInventory] = useState(initial?.trackInventory ?? false);
+  const [inventoryMode, setInventoryMode] = useState<'amount' | 'vials'>(
+    initial?.inventoryPackSize != null && initial.inventoryPackSize > 0 ? 'vials' : 'amount',
+  );
+  const [quantity, setQuantity] = useState(
+    initial?.quantityOnHand != null ? String(initial.quantityOnHand) : '',
+  );
+  const [vialCount, setVialCount] = useState(
+    initial?.inventoryPackSize != null &&
+      initial.inventoryPackSize > 0 &&
+      initial.quantityOnHand != null
+      ? String(Math.round((initial.quantityOnHand / initial.inventoryPackSize) * 1000) / 1000)
+      : '',
+  );
+  const [packSize, setPackSize] = useState(
+    initial?.inventoryPackSize != null
+      ? String(initial.inventoryPackSize)
+      : initial?.type === 'peptide' && initial?.vialMg != null
+        ? String(initial.vialMg)
+        : '',
+  );
+  const [threshold, setThreshold] = useState(
+    initial?.lowStockThreshold != null ? String(initial.lowStockThreshold) : '',
+  );
+  const [refillReminder, setRefillReminder] = useState(initial?.refillReminder !== false);
   const [error, setError] = useState<string | null>(null);
 
   function handleTypeChange(next: SupplementType) {
@@ -69,6 +94,19 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit, children 
       return;
     }
 
+    let quantityOnHand: number | null = null;
+    let inventoryPackSize: number | null = null;
+    if (trackInventory) {
+      if (inventoryMode === 'vials') {
+        const per = parseOptional(packSize);
+        const count = parseQuantity(vialCount);
+        inventoryPackSize = per;
+        quantityOnHand = per != null && count != null ? Math.round(count * per * 1000) / 1000 : null;
+      } else {
+        quantityOnHand = parseQuantity(quantity);
+      }
+    }
+
     onSubmit({
       name: trimmed,
       type,
@@ -79,6 +117,12 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit, children 
       notes: notes.trim() || null,
       vialMg: type === 'peptide' ? parseOptional(vialMg) : null,
       bacMl: type === 'peptide' ? parseOptional(bacMl) : null,
+      trackInventory,
+      quantityOnHand,
+      inventoryUnit: trackInventory ? unit : null,
+      inventoryPackSize,
+      lowStockThreshold: trackInventory ? parseQuantity(threshold) : null,
+      refillReminder: trackInventory ? refillReminder : false,
     });
   }
 
@@ -148,6 +192,86 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit, children 
         </View>
       ) : null}
 
+      <View style={styles.toggleRow}>
+        <View style={styles.flex}>
+          <FieldLabel label="Inventory" />
+          <ThemedText type="caption" themeColor="textSecondary">
+            Track how much is left and get a refill alert.
+          </ThemedText>
+        </View>
+        <Switch
+          value={trackInventory}
+          onValueChange={setTrackInventory}
+          trackColor={{ false: theme.border, true: theme.accent }}
+          thumbColor="#F6FAF8"
+        />
+      </View>
+
+      {trackInventory ? (
+        <View style={styles.mix}>
+          <ChoiceChips
+            options={['amount', 'vials'] as const}
+            value={inventoryMode}
+            labels={{ amount: 'By amount', vials: type === 'peptide' ? 'By vials' : 'By container' }}
+            onChange={setInventoryMode}
+          />
+
+          {inventoryMode === 'vials' ? (
+            <View style={styles.mixRow}>
+              <View style={styles.flex}>
+                <TextField
+                  label={type === 'peptide' ? 'Vials' : 'Containers'}
+                  value={vialCount}
+                  onChangeText={setVialCount}
+                  keyboardType="decimal-pad"
+                  placeholder="10"
+                />
+              </View>
+              <View style={styles.flex}>
+                <TextField
+                  label={`Amount per ${type === 'peptide' ? 'vial' : 'container'} (${unit})`}
+                  value={packSize}
+                  onChangeText={setPackSize}
+                  keyboardType="decimal-pad"
+                  placeholder="10"
+                />
+              </View>
+            </View>
+          ) : (
+            <TextField
+              label={`Remaining (${unit})`}
+              value={quantity}
+              onChangeText={setQuantity}
+              keyboardType="decimal-pad"
+              placeholder="60"
+            />
+          )}
+
+          <TextField
+            label={`Alert below (${unit})`}
+            value={threshold}
+            onChangeText={setThreshold}
+            keyboardType="decimal-pad"
+            placeholder="10"
+          />
+
+          <View style={styles.toggleRow}>
+            <View style={styles.flex}>
+              <ThemedText type="body">Refill reminder</ThemedText>
+              <ThemedText type="caption" themeColor="textSecondary">
+                Ping when remaining reaches the threshold.
+              </ThemedText>
+            </View>
+            <Switch
+              value={refillReminder}
+              onValueChange={setRefillReminder}
+              trackColor={{ false: theme.border, true: theme.accent }}
+              thumbColor="#F6FAF8"
+            />
+          </View>
+        </View>
+      ) : null}
+
       <FieldLabel label="Color" />
       <View style={styles.swatches}>
         {COLOR_SWATCHES.map((swatch) => {
@@ -191,6 +315,13 @@ function parseOptional(value: string): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function parseQuantity(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
 function FieldLabel({ label }: { label: string }) {
   return (
     <ThemedText type="captionBold" themeColor="textSecondary">
@@ -225,6 +356,11 @@ const styles = StyleSheet.create({
   mixRow: {
     flexDirection: 'row',
     gap: Spacing.two,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
   },
   flex: {
     flex: 1,

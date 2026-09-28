@@ -20,6 +20,12 @@ create table if not exists public.supplements (
   vial_mg double precision,
   bac_ml double precision,
   draw_display text not null default 'units',
+  track_inventory boolean not null default false,
+  quantity_on_hand double precision,
+  inventory_unit text,
+  inventory_pack_size double precision,
+  low_stock_threshold double precision,
+  refill_reminder boolean not null default true,
   archived boolean not null default false,
   created_at bigint not null
 );

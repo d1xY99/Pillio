@@ -1,9 +1,10 @@
 import { formatDose } from '@/constants/catalog';
 import { listDosesBetween } from '@/db/queries/doses';
 import { getSchedule } from '@/db/queries/schedules';
-import { getSupplement } from '@/db/queries/supplements';
+import { getSupplement, listSupplements } from '@/db/queries/supplements';
 import { ensureUpcomingDoses } from '@/domain/doses';
 import { listOpenHabitReminders } from '@/domain/habits';
+import { inventoryUnit, isLowStock } from '@/domain/inventory';
 import { addLocalDays, endOfLocalDay, startOfLocalDay } from '@/domain/time';
 import { VAPID_PUBLIC_KEY } from '@/notifications/vapid';
 
@@ -138,6 +139,19 @@ function upcomingDoses() {
   return doses;
 }
 
+function lowStockRefills() {
+  return listSupplements({ archived: false })
+    .filter((item) => item.refillReminder !== false && isLowStock(item))
+    .map((item) => {
+      const unit = inventoryUnit(item);
+      return {
+        id: `refill-${item.id}`,
+        title: `Refill ${item.name}`,
+        body: `${formatDose(item.quantityOnHand ?? 0, unit)} left. Time to restock.`,
+      };
+    });
+}
+
 function remindersEndpoint() {
   if (typeof window === 'undefined') return null;
   const host = window.location.hostname;
@@ -161,6 +175,7 @@ export async function syncWebReminders(options: { test?: boolean } = {}) {
     const endpoint = remindersEndpoint();
     if (!endpoint) return;
     const doses = upcomingDoses();
+    const refills = lowStockRefills();
     await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -169,6 +184,7 @@ export async function syncWebReminders(options: { test?: boolean } = {}) {
         ntfyTopic: getNtfyTopic(),
         subscription,
         doses,
+        refills,
         test: Boolean(options.test),
       }),
     });

@@ -10,6 +10,12 @@ export type Supplement = {
   vialMg: number | null;
   bacMl: number | null;
   drawDisplay: 'units' | 'ml';
+  trackInventory: boolean;
+  quantityOnHand: number | null;
+  inventoryUnit: string | null;
+  inventoryPackSize: number | null;
+  lowStockThreshold: number | null;
+  refillReminder: boolean;
   archived: boolean;
   createdAt: number;
 };
@@ -94,6 +100,12 @@ export function supplement(row: any): Supplement {
     vialMg: row.vial_mg == null ? null : Number(row.vial_mg),
     bacMl: row.bac_ml == null ? null : Number(row.bac_ml),
     drawDisplay: row.draw_display === 'ml' ? 'ml' : 'units',
+    trackInventory: Boolean(row.track_inventory),
+    quantityOnHand: row.quantity_on_hand == null ? null : Number(row.quantity_on_hand),
+    inventoryUnit: row.inventory_unit ?? null,
+    inventoryPackSize: row.inventory_pack_size == null ? null : Number(row.inventory_pack_size),
+    lowStockThreshold: row.low_stock_threshold == null ? null : Number(row.low_stock_threshold),
+    refillReminder: row.refill_reminder !== false,
     archived: Boolean(row.archived),
     createdAt: Number(row.created_at),
   };

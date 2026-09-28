@@ -65,6 +65,13 @@ export default function StackScreen() {
                   {showArchived ? 'Active' : 'Archived'}
                 </ThemedText>
               </Pressable>
+              <Pressable
+                onPress={() => router.push('/inventory')}
+                style={[styles.toggle, { borderColor: theme.border, backgroundColor: theme.surface }]}>
+                <ThemedText type="captionBold" themeColor="textSecondary">
+                  Inventory
+                </ThemedText>
+              </Pressable>
               {!showArchived ? (
                 <Pressable
                   onPress={() => router.push('/supplement/form')}
@@ -140,7 +147,10 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap',
     gap: 8,
+    flexShrink: 1,
   },
   toggle: {
     borderWidth: StyleSheet.hairlineWidth,

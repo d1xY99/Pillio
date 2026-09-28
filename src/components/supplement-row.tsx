@@ -6,6 +6,7 @@ import { PressScale } from '@/components/press-scale';
 import { ThemedText } from '@/components/themed-text';
 import { TypeBadge } from '@/components/type-badge';
 import { FORM_LABELS, formatDose } from '@/constants/catalog';
+import { inventoryUnit, isLowStock } from '@/domain/inventory';
 import { formatPeptideDraw } from '@/domain/peptide';
 import { Radius, Spacing } from '@/constants/theme';
 import type { Supplement } from '@/db/schema';
@@ -24,6 +25,8 @@ export function SupplementRow({
   check?: { taken: boolean; overdue?: boolean; onToggle: () => void };
 }) {
   const theme = useTheme();
+  const tracked = item.trackInventory && item.quantityOnHand != null;
+  const low = isLowStock(item);
 
   return (
     <PressScale onPress={onPress}>
@@ -45,6 +48,17 @@ export function SupplementRow({
               {item.name}
             </ThemedText>
             <TypeBadge type={item.type as SupplementType} />
+            {low ? (
+              <View
+                style={[
+                  styles.lowBadge,
+                  { backgroundColor: `${theme.warning}22`, borderColor: `${theme.warning}66` },
+                ]}>
+                <ThemedText type="captionBold" style={[styles.lowText, { color: theme.warning }]}>
+                  LOW
+                </ThemedText>
+              </View>
+            ) : null}
           </View>
           <ThemedText type="callout" themeColor="textSecondary">
             {[
@@ -57,6 +71,7 @@ export function SupplementRow({
                 item.drawDisplay === 'ml' ? 'ml' : 'units',
               ),
               FORM_LABELS[item.form as SupplementForm],
+              tracked ? `${formatDose(item.quantityOnHand!, inventoryUnit(item))} left` : null,
               status,
             ]
               .filter(Boolean)
@@ -101,6 +116,16 @@ const styles = StyleSheet.create({
   },
   name: {
     flex: 1,
+  },
+  lowBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  lowText: {
+    fontSize: 9,
+    letterSpacing: 0.8,
   },
   check: {
     paddingRight: Spacing.three,
