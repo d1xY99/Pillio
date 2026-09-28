@@ -11,6 +11,7 @@ import { Screen } from '@/components/screen';
 import { ScreenHeader } from '@/components/screen-header';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
+import { UiIcon } from '@/components/ui-icon';
 import { formatDose } from '@/constants/catalog';
 import { Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
@@ -100,6 +101,7 @@ function TrackedRow({ item }: { item: Supplement }) {
   const savedPack = item.inventoryPackSize != null && item.inventoryPackSize > 0;
   const savedCount = savedPack && total != null ? Math.round((total / item.inventoryPackSize!) * 1000) / 1000 : null;
 
+  const [editing, setEditing] = useState(false);
   const [mode, setMode] = useState<'amount' | 'vials'>(savedPack ? 'vials' : 'amount');
   const [per, setPer] = useState(
     item.inventoryPackSize != null
@@ -119,6 +121,22 @@ function TrackedRow({ item }: { item: Supplement }) {
 
   const low = isLowStock(item);
 
+  function resetLocal() {
+    setMode(savedPack ? 'vials' : 'amount');
+    setPer(
+      item.inventoryPackSize != null
+        ? String(item.inventoryPackSize)
+        : String(item.vialMg ?? item.defaultAmount ?? ''),
+    );
+    setAmount(total != null ? String(total) : '');
+    setCount(savedCount != null ? String(savedCount) : '');
+  }
+
+  function cancel() {
+    resetLocal();
+    setEditing(false);
+  }
+
   function save() {
     if (mode === 'vials') {
       const parsedPer = Number(per);
@@ -129,19 +147,20 @@ function TrackedRow({ item }: { item: Supplement }) {
         inventoryPackSize: parsedPer,
         quantityOnHand: Math.round(parsedCount * parsedPer * 1000) / 1000,
       });
-      return;
+    } else {
+      const trimmed = amount.trim();
+      if (!trimmed) {
+        setInventory(item.id, { quantityOnHand: null, inventoryPackSize: null });
+      } else {
+        const parsed = Number(trimmed);
+        if (!Number.isFinite(parsed) || parsed < 0) return;
+        setInventory(item.id, {
+          quantityOnHand: Math.round(parsed * 1000) / 1000,
+          inventoryPackSize: null,
+        });
+      }
     }
-    const trimmed = amount.trim();
-    if (!trimmed) {
-      setInventory(item.id, { quantityOnHand: null, inventoryPackSize: null });
-      return;
-    }
-    const parsed = Number(trimmed);
-    if (!Number.isFinite(parsed) || parsed < 0) return;
-    setInventory(item.id, {
-      quantityOnHand: Math.round(parsed * 1000) / 1000,
-      inventoryPackSize: null,
-    });
+    setEditing(false);
   }
 
   function untrack() {
@@ -205,6 +224,17 @@ function TrackedRow({ item }: { item: Supplement }) {
               </ThemedText>
             </View>
           ) : null}
+          {editing ? (
+            <Pressable onPress={cancel} hitSlop={8} accessibilityLabel="Cancel">
+              <ThemedText type="captionBold" themeColor="accent">
+                Cancel
+              </ThemedText>
+            </Pressable>
+          ) : (
+            <Pressable onPress={() => setEditing(true)} hitSlop={8} accessibilityLabel="Edit inventory">
+              <UiIcon name="pencil" color={theme.textSecondary} size={18} />
+            </Pressable>
+          )}
         </View>
 
         <ThemedText type="title">
@@ -225,68 +255,72 @@ function TrackedRow({ item }: { item: Supplement }) {
             : `Alert below ${formatDose(item.lowStockThreshold, unit)}.`}
         </ThemedText>
 
-        <ChoiceChips
-          options={['amount', 'vials'] as const}
-          value={mode}
-          labels={{ amount: 'By amount', vials: `By ${container}s` }}
-          onChange={setMode}
-        />
+        {editing ? (
+          <>
+            <ChoiceChips
+              options={['amount', 'vials'] as const}
+              value={mode}
+              labels={{ amount: 'By amount', vials: `By ${container}s` }}
+              onChange={setMode}
+            />
 
-        {mode === 'vials' ? (
-          <View style={styles.mixRow}>
-            <View style={styles.field}>
+            {mode === 'vials' ? (
+              <View style={styles.mixRow}>
+                <View style={styles.field}>
+                  <TextField
+                    label={container === 'vial' ? 'Vials' : 'Containers'}
+                    value={count}
+                    onChangeText={setCount}
+                    keyboardType="decimal-pad"
+                    placeholder="10"
+                  />
+                </View>
+                <View style={styles.field}>
+                  <TextField
+                    label={`Per ${container} (${unit})`}
+                    value={per}
+                    onChangeText={setPer}
+                    keyboardType="decimal-pad"
+                    placeholder="10"
+                  />
+                </View>
+              </View>
+            ) : (
               <TextField
-                label={container === 'vial' ? 'Vials' : 'Containers'}
-                value={count}
-                onChangeText={setCount}
+                label={`Current (${unit})`}
+                value={amount}
+                onChangeText={setAmount}
                 keyboardType="decimal-pad"
-                placeholder="10"
+                placeholder="0"
               />
-            </View>
-            <View style={styles.field}>
-              <TextField
-                label={`Per ${container} (${unit})`}
-                value={per}
-                onChangeText={setPer}
-                keyboardType="decimal-pad"
-                placeholder="10"
-              />
-            </View>
-          </View>
-        ) : (
-          <TextField
-            label={`Current (${unit})`}
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="decimal-pad"
-            placeholder="0"
-          />
-        )}
+            )}
 
-        <View style={styles.controls}>
-          <PressScale
-            onPress={() => bump(-1)}
-            style={[styles.stepButton, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}>
-            <StepGlyph label="−" color={theme.text} />
-          </PressScale>
-          <PressScale
-            onPress={() => bump(1)}
-            style={[styles.stepButton, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}>
-            <StepGlyph label="+" color={theme.text} />
-          </PressScale>
-          <View style={styles.spacer} />
-          <PressScale onPress={save} style={[styles.saveButton, { backgroundColor: theme.accent }]}>
-            <ThemedText type="captionBold" style={styles.saveLabel}>
-              Save
-            </ThemedText>
-          </PressScale>
-        </View>
+            <View style={styles.controls}>
+              <PressScale
+                onPress={() => bump(-1)}
+                style={[styles.stepButton, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}>
+                <StepGlyph label="−" color={theme.text} />
+              </PressScale>
+              <PressScale
+                onPress={() => bump(1)}
+                style={[styles.stepButton, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}>
+                <StepGlyph label="+" color={theme.text} />
+              </PressScale>
+              <View style={styles.spacer} />
+              <PressScale onPress={save} style={[styles.saveButton, { backgroundColor: theme.accent }]}>
+                <ThemedText type="captionBold" style={styles.saveLabel}>
+                  Save
+                </ThemedText>
+              </PressScale>
+            </View>
 
-        <Pressable onPress={untrack} hitSlop={8} style={styles.untrack}>
-          <ThemedText type="caption" themeColor="danger">
-            Remove from tracking
-          </ThemedText>
-        </Pressable>
+            <Pressable onPress={untrack} hitSlop={8} style={styles.untrack}>
+              <ThemedText type="caption" themeColor="danger">
+                Remove from tracking
+              </ThemedText>
+            </Pressable>
+          </>
+        ) : null}
       </View>
     </View>
   );

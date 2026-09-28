@@ -17,7 +17,8 @@ export type UiIconName =
   | 'arrow.left'
   | 'note.text'
   | 'pin.fill'
-  | 'trash';
+  | 'trash'
+  | 'pencil';
 
 const GLYPH: Record<UiIconName, string> = {
   plus: '+',
@@ -36,6 +37,7 @@ const GLYPH: Record<UiIconName, string> = {
   'note.text': '📝',
   'pin.fill': '📍',
   trash: '🗑',
+  pencil: '✎',
 };
 
 export function UiIcon({
