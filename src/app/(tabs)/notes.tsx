@@ -1,6 +1,7 @@
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { desc, eq } from 'drizzle-orm';
+import { useRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { EmptyState } from '@/components/empty-state';
 import { FadeIn as FadeBlock } from '@/components/fade-in';
@@ -12,8 +13,9 @@ import { ThemedText } from '@/components/themed-text';
 import { UiIcon } from '@/components/ui-icon';
 import { NOTE_CATEGORIES } from '@/constants/notes';
 import { Radius, Spacing } from '@/constants/theme';
-import { subscribeDb } from '@/db/events';
-import { listNotes } from '@/db/queries/notes';
+import { getDb } from '@/db/client';
+import { useLiveQuery } from '@/db/live';
+import { notes } from '@/db/schema';
 import { useCloudSlice } from '@/hooks/use-cloud-slice';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -21,32 +23,19 @@ export default function NotesScreen() {
   useCloudSlice('notes');
   const router = useRouter();
   const theme = useTheme();
-  const [tick, setTick] = useState(0);
   const [filter, setFilter] = useState<string>('all');
 
-  useFocusEffect(
-    useCallback(() => {
-      setTick((value) => value + 1);
-    }, []),
-  );
-
-  useLayoutEffect(
-    () =>
-      subscribeDb(() => {
-        setTick((value) => value + 1);
-      }),
+  const db = getDb();
+  const { data: all = [] } = useLiveQuery(
+    db
+      .select()
+      .from(notes)
+      .where(eq(notes.archived, false))
+      .orderBy(desc(notes.pinned), desc(notes.updatedAt)),
     [],
   );
 
-  const all = useMemo(() => {
-    try {
-      return listNotes(false);
-    } catch {
-      return [];
-    }
-  }, [tick]);
   const filtered = filter === 'all' ? all : all.filter((note) => note.category === filter);
-  const pinnedCount = all.filter((note) => note.pinned).length;
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
     for (const note of all) map[note.category] = (map[note.category] ?? 0) + 1;
@@ -74,34 +63,25 @@ export default function NotesScreen() {
         }
       />
 
-      <View style={styles.stats}>
-        <Stat value={all.length} label="notes" />
-        <View style={[styles.rule, { backgroundColor: theme.border }]} />
-        <Stat value={pinnedCount} label="pinned" />
-        <View style={[styles.rule, { backgroundColor: theme.border }]} />
-        <Stat value={Object.keys(counts).length} label="categories" />
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}>
-        <Chip
+      <View style={styles.filters}>
+        <FilterChip
           label="All"
           emoji="🗂️"
+          count={all.length}
           active={filter === 'all'}
           onPress={() => setFilter('all')}
         />
         {NOTE_CATEGORIES.map((category) => (
-          <Chip
+          <FilterChip
             key={category.id}
             label={category.label}
             emoji={category.emoji}
+            count={counts[category.id] ?? 0}
             active={filter === category.id}
             onPress={() => setFilter((current) => (current === category.id ? 'all' : category.id))}
           />
         ))}
-      </ScrollView>
+      </View>
 
       <View style={styles.sectionHead}>
         <ThemedText type="captionBold" themeColor="textTertiary" style={styles.sectionKicker}>
@@ -142,25 +122,16 @@ export default function NotesScreen() {
   );
 }
 
-function Stat({ value, label }: { value: number; label: string }) {
-  return (
-    <View style={styles.stat}>
-      <ThemedText type="headline">{value}</ThemedText>
-      <ThemedText type="caption" themeColor="textSecondary">
-        {label}
-      </ThemedText>
-    </View>
-  );
-}
-
-function Chip({
+function FilterChip({
   label,
   emoji,
+  count,
   active,
   onPress,
 }: {
   label: string;
   emoji: string;
+  count: number;
   active: boolean;
   onPress: () => void;
 }) {
@@ -178,6 +149,13 @@ function Chip({
       <ThemedText type="captionBold" style={{ color: active ? theme.accent : theme.textSecondary }}>
         {emoji} {label}
       </ThemedText>
+      <View style={[styles.count, { backgroundColor: active ? theme.accent : theme.surfaceRaised }]}>
+        <ThemedText
+          type="captionBold"
+          style={{ color: active ? '#06110D' : theme.textTertiary, fontSize: 11 }}>
+          {count}
+        </ThemedText>
+      </View>
     </Pressable>
   );
 }
@@ -195,32 +173,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stats: {
+  filters: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.three,
-    marginBottom: Spacing.three,
-  },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
-  },
-  rule: {
-    width: 1,
-    height: 26,
-  },
-  chips: {
+    flexWrap: 'wrap',
     gap: 8,
-    paddingBottom: Spacing.one,
     marginBottom: Spacing.four,
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     borderWidth: 1,
     borderRadius: Radius.full,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingLeft: 12,
+    paddingRight: 6,
+    paddingVertical: 7,
+  },
+  count: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionHead: {
     flexDirection: 'row',
