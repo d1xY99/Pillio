@@ -213,8 +213,9 @@ function TrackedRow({ item }: { item: Supplement }) {
 
   return (
     <Pressable
-      disabled={editing}
-      onPress={() => setEditing(true)}
+      onPress={() => {
+        if (!editing) setEditing(true);
+      }}
       accessibilityRole="button"
       accessibilityLabel={`Edit ${item.name} inventory`}
       style={[
@@ -224,20 +225,22 @@ function TrackedRow({ item }: { item: Supplement }) {
       <View style={[styles.stripe, { backgroundColor: item.color }]} />
       <View style={styles.cardBody}>
         <View style={styles.cardHead}>
-          <ThemedText type="headline" numberOfLines={1} style={styles.name}>
-            {item.name}
-          </ThemedText>
-          {low ? (
-            <View
-              style={[
-                styles.badge,
-                { backgroundColor: `${theme.warning}22`, borderColor: `${theme.warning}66` },
-              ]}>
-              <ThemedText type="captionBold" style={[styles.badgeText, { color: theme.warning }]}>
-                LOW
-              </ThemedText>
-            </View>
-          ) : null}
+          <Pressable onPress={() => setEditing((value) => !value)} style={styles.headToggle}>
+            <ThemedText type="headline" numberOfLines={1} style={styles.name}>
+              {item.name}
+            </ThemedText>
+            {low ? (
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: `${theme.warning}22`, borderColor: `${theme.warning}66` },
+                ]}>
+                <ThemedText type="captionBold" style={[styles.badgeText, { color: theme.warning }]}>
+                  LOW
+                </ThemedText>
+              </View>
+            ) : null}
+          </Pressable>
           {editing ? (
             <Pressable onPress={cancel} hitSlop={8} accessibilityLabel="Cancel">
               <ThemedText type="captionBold" themeColor="accent">
@@ -425,6 +428,12 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   cardHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  headToggle: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
