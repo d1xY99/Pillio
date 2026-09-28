@@ -174,6 +174,13 @@ function RootNavigator() {
           }}
         />
         <Stack.Screen
+          name="inventory"
+          options={{
+            headerShown: true,
+            title: 'Inventory',
+          }}
+        />
+        <Stack.Screen
           name="note/[id]"
           options={{
             headerShown: true,
