@@ -145,6 +145,14 @@ const MIGRATION_6 = [
   `CREATE INDEX IF NOT EXISTS notes_category_idx ON notes (category)`,
 ];
 
+const MIGRATION_7 = [
+  `ALTER TABLE supplements ADD COLUMN track_inventory INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE supplements ADD COLUMN quantity_on_hand REAL`,
+  `ALTER TABLE supplements ADD COLUMN inventory_unit TEXT`,
+  `ALTER TABLE supplements ADD COLUMN low_stock_threshold REAL`,
+  `ALTER TABLE supplements ADD COLUMN refill_reminder INTEGER NOT NULL DEFAULT 1`,
+];
+
 const MIGRATIONS: { version: number; statements: string[] }[] = [
   { version: 1, statements: MIGRATION_1 },
   { version: 2, statements: MIGRATION_2 },
@@ -152,6 +160,7 @@ const MIGRATIONS: { version: number; statements: string[] }[] = [
   { version: 4, statements: MIGRATION_4 },
   { version: 5, statements: MIGRATION_5 },
   { version: 6, statements: MIGRATION_6 },
+  { version: 7, statements: MIGRATION_7 },
 ];
 
 export function applySqlMigrations(executor: SqlExecutor) {

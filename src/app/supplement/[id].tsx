@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { Button } from '@/components/button';
 import { Heatmap } from '@/components/heatmap';
+import { InventoryCard } from '@/components/inventory-card';
 import { PeptideMathCard } from '@/components/peptide-math-card';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
@@ -193,6 +194,8 @@ export default function SupplementDetailScreen() {
           }}
         />
       ) : null}
+
+      <InventoryCard item={item} />
 
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <ThemedText type="captionBold" themeColor="textTertiary">

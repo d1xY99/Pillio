@@ -72,6 +72,12 @@ stackRoutes.post('/', async (c) => {
     vial_mg: body.vialMg == null || body.vialMg === '' ? null : Number(body.vialMg),
     bac_ml: body.bacMl == null || body.bacMl === '' ? null : Number(body.bacMl),
     draw_display: body.drawDisplay === 'ml' ? 'ml' : 'units',
+    track_inventory: Boolean(body.trackInventory),
+    quantity_on_hand: body.quantityOnHand == null || body.quantityOnHand === '' ? null : Number(body.quantityOnHand),
+    inventory_unit: body.inventoryUnit ?? null,
+    low_stock_threshold:
+      body.lowStockThreshold == null || body.lowStockThreshold === '' ? null : Number(body.lowStockThreshold),
+    refill_reminder: body.refillReminder !== false,
     archived: false,
     created_at: createdAt,
   });
@@ -97,6 +103,17 @@ stackRoutes.patch('/:id', async (c) => {
   if (body.vialMg !== undefined) patch.vial_mg = body.vialMg == null || body.vialMg === '' ? null : Number(body.vialMg);
   if (body.bacMl !== undefined) patch.bac_ml = body.bacMl == null || body.bacMl === '' ? null : Number(body.bacMl);
   if (body.drawDisplay !== undefined) patch.draw_display = body.drawDisplay === 'ml' ? 'ml' : 'units';
+  if (body.trackInventory !== undefined) patch.track_inventory = Boolean(body.trackInventory);
+  if (body.quantityOnHand !== undefined) {
+    patch.quantity_on_hand =
+      body.quantityOnHand == null || body.quantityOnHand === '' ? null : Number(body.quantityOnHand);
+  }
+  if (body.inventoryUnit !== undefined) patch.inventory_unit = body.inventoryUnit ?? null;
+  if (body.lowStockThreshold !== undefined) {
+    patch.low_stock_threshold =
+      body.lowStockThreshold == null || body.lowStockThreshold === '' ? null : Number(body.lowStockThreshold);
+  }
+  if (body.refillReminder !== undefined) patch.refill_reminder = Boolean(body.refillReminder);
   if (body.type !== undefined && body.type !== 'peptide') {
     patch.vial_mg = null;
     patch.bac_ml = null;

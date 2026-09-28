@@ -1,5 +1,5 @@
 import { getStore } from '@netlify/blobs';
-import { sendPush, shouldAlert } from './_push.mjs';
+import { sendPush, shouldAlert, shouldRefillAlert } from './_push.mjs';
 
 export async function runDispatch() {
   const store = getStore('pillio-reminders');
@@ -15,23 +15,32 @@ export async function runDispatch() {
 
     const doses = Array.isArray(record.doses) ? record.doses : [];
     const due = doses.filter((dose) => shouldAlert(dose, now));
-    if (due.length === 0) continue;
+    const refills = Array.isArray(record.refills) ? record.refills : [];
+    const dueRefills = refills.filter((refill) => shouldRefillAlert(refill, now));
+    if (due.length === 0 && dueRefills.length === 0) continue;
 
     const sentIds = new Set();
-    const results = await Promise.allSettled(
-      due.map(async (dose) => {
+    const sentRefillIds = new Set();
+    await Promise.allSettled([
+      ...due.map(async (dose) => {
         await sendPush(record.subscription, dose, record.ntfyTopic);
         sentIds.add(dose.id);
       }),
-    );
-    for (const result of results) {
-      if (result.status === 'fulfilled') sent += 1;
-    }
+      ...dueRefills.map(async (refill) => {
+        await sendPush(record.subscription, refill, record.ntfyTopic);
+        sentRefillIds.add(refill.id);
+      }),
+    ]);
+    sent += sentIds.size + sentRefillIds.size;
 
-    const next = doses.map((dose) => (sentIds.has(dose.id) ? { ...dose, lastSent: now } : dose));
+    const nextDoses = doses.map((dose) => (sentIds.has(dose.id) ? { ...dose, lastSent: now } : dose));
+    const nextRefills = refills.map((refill) =>
+      sentRefillIds.has(refill.id) ? { ...refill, lastSent: now } : refill,
+    );
     await store.setJSON(blob.key, {
       ...record,
-      doses: next,
+      doses: nextDoses,
+      refills: nextRefills,
       updatedAt: Date.now(),
     });
   }

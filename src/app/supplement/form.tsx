@@ -86,6 +86,11 @@ export default function SupplementFormScreen() {
                   notes: existing.notes,
                   vialMg: existing.vialMg,
                   bacMl: existing.bacMl,
+                  trackInventory: existing.trackInventory,
+                  quantityOnHand: existing.quantityOnHand,
+                  inventoryUnit: existing.inventoryUnit as SupplementInput['inventoryUnit'],
+                  lowStockThreshold: existing.lowStockThreshold,
+                  refillReminder: existing.refillReminder,
                 }
               : undefined
           }

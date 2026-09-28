@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { ChoiceChips } from '@/components/choice-chips';
@@ -44,6 +44,14 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit, children 
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [vialMg, setVialMg] = useState(initial?.vialMg != null ? String(initial.vialMg) : '');
   const [bacMl, setBacMl] = useState(initial?.bacMl != null ? String(initial.bacMl) : '');
+  const [trackInventory, setTrackInventory] = useState(initial?.trackInventory ?? false);
+  const [quantity, setQuantity] = useState(
+    initial?.quantityOnHand != null ? String(initial.quantityOnHand) : '',
+  );
+  const [threshold, setThreshold] = useState(
+    initial?.lowStockThreshold != null ? String(initial.lowStockThreshold) : '',
+  );
+  const [refillReminder, setRefillReminder] = useState(initial?.refillReminder !== false);
   const [error, setError] = useState<string | null>(null);
 
   function handleTypeChange(next: SupplementType) {
@@ -79,6 +87,11 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit, children 
       notes: notes.trim() || null,
       vialMg: type === 'peptide' ? parseOptional(vialMg) : null,
       bacMl: type === 'peptide' ? parseOptional(bacMl) : null,
+      trackInventory,
+      quantityOnHand: trackInventory ? parseQuantity(quantity) : null,
+      inventoryUnit: trackInventory ? unit : null,
+      lowStockThreshold: trackInventory ? parseQuantity(threshold) : null,
+      refillReminder: trackInventory ? refillReminder : false,
     });
   }
 
@@ -148,6 +161,60 @@ export function SupplementFormFields({ initial, submitLabel, onSubmit, children 
         </View>
       ) : null}
 
+      <View style={styles.toggleRow}>
+        <View style={styles.flex}>
+          <FieldLabel label="Inventory" />
+          <ThemedText type="caption" themeColor="textSecondary">
+            Track how much is left and get a refill alert.
+          </ThemedText>
+        </View>
+        <Switch
+          value={trackInventory}
+          onValueChange={setTrackInventory}
+          trackColor={{ false: theme.border, true: theme.accent }}
+          thumbColor="#F6FAF8"
+        />
+      </View>
+
+      {trackInventory ? (
+        <View style={styles.mix}>
+          <View style={styles.mixRow}>
+            <View style={styles.flex}>
+              <TextField
+                label={`Remaining (${unit})`}
+                value={quantity}
+                onChangeText={setQuantity}
+                keyboardType="decimal-pad"
+                placeholder="60"
+              />
+            </View>
+            <View style={styles.flex}>
+              <TextField
+                label={`Alert below (${unit})`}
+                value={threshold}
+                onChangeText={setThreshold}
+                keyboardType="decimal-pad"
+                placeholder="10"
+              />
+            </View>
+          </View>
+          <View style={styles.toggleRow}>
+            <View style={styles.flex}>
+              <ThemedText type="body">Refill reminder</ThemedText>
+              <ThemedText type="caption" themeColor="textSecondary">
+                Ping when remaining reaches the threshold.
+              </ThemedText>
+            </View>
+            <Switch
+              value={refillReminder}
+              onValueChange={setRefillReminder}
+              trackColor={{ false: theme.border, true: theme.accent }}
+              thumbColor="#F6FAF8"
+            />
+          </View>
+        </View>
+      ) : null}
+
       <FieldLabel label="Color" />
       <View style={styles.swatches}>
         {COLOR_SWATCHES.map((swatch) => {
@@ -191,6 +258,13 @@ function parseOptional(value: string): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function parseQuantity(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
 function FieldLabel({ label }: { label: string }) {
   return (
     <ThemedText type="captionBold" themeColor="textSecondary">
@@ -225,6 +299,11 @@ const styles = StyleSheet.create({
   mixRow: {
     flexDirection: 'row',
     gap: Spacing.two,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
   },
   flex: {
     flex: 1,

@@ -7,6 +7,7 @@ const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || 'lUKbFuBjIHOhlNLaYezsA59f
 webpush.setVapidDetails('mailto:pillio@local', VAPID_PUBLIC, VAPID_PRIVATE);
 
 export const REPEAT_MS = 15 * 60 * 1000;
+export const REFILL_REPEAT_MS = 20 * 60 * 60 * 1000;
 const MAX_OVERDUE_MS = 18 * 60 * 60 * 1000;
 const SEND_TIMEOUT_MS = 4000;
 
@@ -14,6 +15,12 @@ export function shouldAlert(dose, now = Date.now()) {
   if (!dose?.id || !dose?.at || dose.at > now) return false;
   if (now - Number(dose.at) > MAX_OVERDUE_MS) return false;
   if (dose.lastSent && now - Number(dose.lastSent) < REPEAT_MS) return false;
+  return true;
+}
+
+export function shouldRefillAlert(refill, now = Date.now()) {
+  if (!refill?.id) return false;
+  if (refill.lastSent && now - Number(refill.lastSent) < REFILL_REPEAT_MS) return false;
   return true;
 }
 

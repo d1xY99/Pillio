@@ -1,6 +1,6 @@
 import { and, desc, eq } from 'drizzle-orm';
 
-import { apiDelete, apiPost } from '@/api/client';
+import { apiDelete, apiPatch, apiPost } from '@/api/client';
 import { getDb } from '@/db/client';
 import { notifyDbChanged } from '@/db/events';
 import { createId } from '@/db/ids';
@@ -18,6 +18,11 @@ export type SupplementInput = {
   vialMg?: number | null;
   bacMl?: number | null;
   drawDisplay?: DrawDisplay;
+  trackInventory?: boolean;
+  quantityOnHand?: number | null;
+  inventoryUnit?: DoseUnit | null;
+  lowStockThreshold?: number | null;
+  refillReminder?: boolean;
 };
 
 export function listSupplements(options: { archived?: boolean } = {}): Supplement[] {
@@ -52,6 +57,11 @@ export function createSupplement(input: SupplementInput): Supplement {
     vialMg: input.type === 'peptide' ? input.vialMg ?? null : null,
     bacMl: input.type === 'peptide' ? input.bacMl ?? null : null,
     drawDisplay: input.drawDisplay ?? 'units',
+    trackInventory: input.trackInventory ?? false,
+    quantityOnHand: input.trackInventory ? input.quantityOnHand ?? null : null,
+    inventoryUnit: input.trackInventory ? input.inventoryUnit ?? input.defaultUnit : null,
+    lowStockThreshold: input.trackInventory ? input.lowStockThreshold ?? null : null,
+    refillReminder: input.trackInventory ? input.refillReminder ?? true : false,
     archived: false,
     createdAt: Date.now(),
   };
@@ -75,6 +85,14 @@ export function updateSupplement(id: string, patch: Partial<SupplementInput>): S
       ...(patch.vialMg !== undefined ? { vialMg: patch.vialMg } : {}),
       ...(patch.bacMl !== undefined ? { bacMl: patch.bacMl } : {}),
       ...(patch.drawDisplay !== undefined ? { drawDisplay: patch.drawDisplay } : {}),
+      ...(patch.trackInventory !== undefined ? { trackInventory: patch.trackInventory } : {}),
+      ...(patch.quantityOnHand !== undefined ? { quantityOnHand: patch.quantityOnHand } : {}),
+      ...(patch.inventoryUnit !== undefined ? { inventoryUnit: patch.inventoryUnit } : {}),
+      ...(patch.lowStockThreshold !== undefined ? { lowStockThreshold: patch.lowStockThreshold } : {}),
+      ...(patch.refillReminder !== undefined ? { refillReminder: patch.refillReminder } : {}),
+      ...(patch.trackInventory === false
+        ? { quantityOnHand: null, inventoryUnit: null, lowStockThreshold: null, refillReminder: false }
+        : {}),
       ...(patch.type !== undefined && patch.type !== 'peptide' ? { vialMg: null, bacMl: null } : {}),
     })
     .where(eq(supplements.id, id))
@@ -106,4 +124,21 @@ export function listRecentSupplements(): Supplement[] {
     .where(and(eq(supplements.archived, false)))
     .orderBy(desc(supplements.createdAt))
     .all();
+}
+
+export function setInventoryQuantity(supplementId: string, quantity: number | null): void {
+  getDb()
+    .update(supplements)
+    .set({ quantityOnHand: quantity })
+    .where(eq(supplements.id, supplementId))
+    .run();
+  notifyDbChanged();
+  void apiPatch(`/stack/${supplementId}`, { quantityOnHand: quantity }).catch(() => undefined);
+}
+
+export function adjustInventory(supplementId: string, delta: number): void {
+  const supplement = getSupplement(supplementId);
+  if (!supplement || !supplement.trackInventory || supplement.quantityOnHand == null || !delta) return;
+  const next = Math.max(0, Math.round((supplement.quantityOnHand + delta) * 1000) / 1000);
+  setInventoryQuantity(supplementId, next);
 }
