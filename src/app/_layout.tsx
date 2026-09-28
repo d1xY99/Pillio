@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider, useAuth } from '@/auth/auth-context';
 import { BootLoading } from '@/components/boot-loading';
 import { SettingsDrawer } from '@/components/settings-drawer';
+import { ToastHost } from '@/components/toast-host';
 import { SettingsDrawerProvider } from '@/settings/drawer-context';
 import { ThemedText } from '@/components/themed-text';
 import { initDatabase } from '@/db/client';
@@ -105,6 +106,7 @@ export default function RootLayout() {
             <StatusBar style={themeName === 'dark' ? 'light' : 'dark'} />
             <RootNavigator />
             <SettingsDrawer />
+            <ToastHost />
           </ThemeProvider>
         </SettingsDrawerProvider>
       </AuthProvider>

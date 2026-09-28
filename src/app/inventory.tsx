@@ -21,7 +21,7 @@ import { supplements, type Supplement } from '@/db/schema';
 import type { DoseUnit } from '@/db/types';
 import { inventoryUnit, isLowStock } from '@/domain/inventory';
 import { useTheme } from '@/hooks/use-theme';
-import { confirmAction } from '@/lib/confirm';
+import { showToast } from '@/lib/toast';
 
 export default function InventoryScreen() {
   const theme = useTheme();
@@ -164,22 +164,32 @@ function TrackedRow({ item }: { item: Supplement }) {
   }
 
   function untrack() {
-    void confirmAction(
-      `Remove ${item.name} from tracking?`,
-      'Its quantity and alert settings will be cleared.',
-      'Untrack',
-    ).then((ok) => {
-      if (!ok) return;
-      const patch = {
-        trackInventory: false,
-        quantityOnHand: null,
-        inventoryUnit: null,
-        inventoryPackSize: null,
-        lowStockThreshold: null,
-        refillReminder: false,
-      };
-      updateSupplement(item.id, patch);
-      void apiPatch(`/stack/${item.id}`, patch).catch(() => undefined);
+    const previous = {
+      trackInventory: true,
+      quantityOnHand: item.quantityOnHand,
+      inventoryUnit: item.inventoryUnit as DoseUnit | null,
+      inventoryPackSize: item.inventoryPackSize,
+      lowStockThreshold: item.lowStockThreshold,
+      refillReminder: item.refillReminder,
+    };
+    const patch = {
+      trackInventory: false,
+      quantityOnHand: null,
+      inventoryUnit: null,
+      inventoryPackSize: null,
+      lowStockThreshold: null,
+      refillReminder: false,
+    };
+    updateSupplement(item.id, patch);
+    void apiPatch(`/stack/${item.id}`, patch).catch(() => undefined);
+    showToast(`${item.name} removed from tracking`, {
+      action: {
+        label: 'Undo',
+        onPress: () => {
+          updateSupplement(item.id, previous);
+          void apiPatch(`/stack/${item.id}`, previous).catch(() => undefined);
+        },
+      },
     });
   }
 
@@ -202,7 +212,11 @@ function TrackedRow({ item }: { item: Supplement }) {
   }
 
   return (
-    <View
+    <Pressable
+      disabled={editing}
+      onPress={() => setEditing(true)}
+      accessibilityRole="button"
+      accessibilityLabel={`Edit ${item.name} inventory`}
       style={[
         styles.card,
         { backgroundColor: theme.surface, borderColor: low ? `${theme.warning}66` : theme.border },
@@ -322,7 +336,7 @@ function TrackedRow({ item }: { item: Supplement }) {
           </>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
