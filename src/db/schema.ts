@@ -142,6 +142,25 @@ export const habitLogs = sqliteTable(
   ],
 );
 
+export const notes = sqliteTable(
+  'notes',
+  {
+    id: text('id').primaryKey(),
+    title: text('title').notNull(),
+    body: text('body').notNull().default(''),
+    category: text('category').notNull(),
+    color: text('color').notNull(),
+    pinned: integer('pinned', { mode: 'boolean' }).notNull().default(false),
+    archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [
+    index('notes_archived_idx').on(table.archived),
+    index('notes_category_idx').on(table.category),
+  ],
+);
+
 export const progressPhotos = sqliteTable(
   'progress_photos',
   {
@@ -165,6 +184,7 @@ export const schema = {
   progressPhotos,
   habits,
   habitLogs,
+  notes,
 };
 
 export type Supplement = typeof supplements.$inferSelect;
@@ -181,3 +201,5 @@ export type ProgressPhoto = typeof progressPhotos.$inferSelect;
 export type Habit = typeof habits.$inferSelect;
 export type NewHabit = typeof habits.$inferInsert;
 export type HabitLog = typeof habitLogs.$inferSelect;
+export type Note = typeof notes.$inferSelect;
+export type NewNote = typeof notes.$inferInsert;

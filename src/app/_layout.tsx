@@ -174,6 +174,21 @@ function RootNavigator() {
           }}
         />
         <Stack.Screen
+          name="note/[id]"
+          options={{
+            headerShown: true,
+            title: 'Note',
+          }}
+        />
+        <Stack.Screen
+          name="note/form"
+          options={{
+            headerShown: true,
+            title: 'New note',
+            presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
           name="workout/[id]"
           options={{
             headerShown: true,

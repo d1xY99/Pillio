@@ -7,6 +7,7 @@ const LABELS: Record<string, string> = {
   index: 'Today',
   stack: 'Stack',
   habits: 'Habits',
+  notes: 'Notes',
   train: 'Train',
   progress: 'Body',
   analytics: 'Stats',
