@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { apiPatch } from '@/api/client';
 import { ChoiceChips } from '@/components/choice-chips';
@@ -20,6 +20,7 @@ import { supplements, type Supplement } from '@/db/schema';
 import type { DoseUnit } from '@/db/types';
 import { inventoryUnit, isLowStock } from '@/domain/inventory';
 import { useTheme } from '@/hooks/use-theme';
+import { confirmAction } from '@/lib/confirm';
 
 export default function InventoryScreen() {
   const theme = useTheme();
@@ -143,6 +144,26 @@ function TrackedRow({ item }: { item: Supplement }) {
     });
   }
 
+  function untrack() {
+    void confirmAction(
+      `Remove ${item.name} from tracking?`,
+      'Its quantity and alert settings will be cleared.',
+      'Untrack',
+    ).then((ok) => {
+      if (!ok) return;
+      const patch = {
+        trackInventory: false,
+        quantityOnHand: null,
+        inventoryUnit: null,
+        inventoryPackSize: null,
+        lowStockThreshold: null,
+        refillReminder: false,
+      };
+      updateSupplement(item.id, patch);
+      void apiPatch(`/stack/${item.id}`, patch).catch(() => undefined);
+    });
+  }
+
   function bump(sign: 1 | -1) {
     const base = total ?? 0;
     if (mode === 'vials') {
@@ -260,6 +281,12 @@ function TrackedRow({ item }: { item: Supplement }) {
             </ThemedText>
           </PressScale>
         </View>
+
+        <Pressable onPress={untrack} hitSlop={8} style={styles.untrack}>
+          <ThemedText type="caption" themeColor="danger">
+            Remove from tracking
+          </ThemedText>
+        </Pressable>
       </View>
     </View>
   );
@@ -413,6 +440,12 @@ const styles = StyleSheet.create({
   },
   saveLabel: {
     color: '#06110D',
+  },
+  untrack: {
+    alignSelf: 'center',
+    marginTop: Spacing.three,
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.two,
   },
   untrackedBody: {
     flexDirection: 'row',
