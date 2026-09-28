@@ -14,7 +14,10 @@ export type UiIconName =
   | 'xmark'
   | 'chevron.right'
   | 'lock.fill'
-  | 'arrow.left';
+  | 'arrow.left'
+  | 'note.text'
+  | 'pin.fill'
+  | 'trash';
 
 const GLYPH: Record<UiIconName, string> = {
   plus: '+',
@@ -30,6 +33,9 @@ const GLYPH: Record<UiIconName, string> = {
   'chevron.right': '›',
   'lock.fill': '∗',
   'arrow.left': '←',
+  'note.text': '📝',
+  'pin.fill': '📍',
+  trash: '🗑',
 };
 
 export function UiIcon({

@@ -98,6 +98,19 @@ create table if not exists public.progress_photos (
   notes text
 );
 
+create table if not exists public.notes (
+  id uuid primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  title text not null,
+  body text not null default '',
+  category text not null,
+  color text not null,
+  pinned boolean not null default false,
+  archived boolean not null default false,
+  created_at bigint not null,
+  updated_at bigint not null
+);
+
 create index if not exists supplements_user_idx on public.supplements (user_id);
 create index if not exists schedules_user_idx on public.schedules (user_id);
 create index if not exists dose_logs_user_idx on public.dose_logs (user_id);
@@ -106,6 +119,7 @@ create index if not exists workout_sessions_user_idx on public.workout_sessions 
 create index if not exists workout_sets_user_idx on public.workout_sets (user_id);
 create index if not exists body_weights_user_idx on public.body_weights (user_id);
 create index if not exists progress_photos_user_idx on public.progress_photos (user_id);
+create index if not exists notes_user_idx on public.notes (user_id);
 
 alter table public.profiles enable row level security;
 alter table public.supplements enable row level security;
@@ -116,6 +130,7 @@ alter table public.workout_sessions enable row level security;
 alter table public.workout_sets enable row level security;
 alter table public.body_weights enable row level security;
 alter table public.progress_photos enable row level security;
+alter table public.notes enable row level security;
 
 create policy "own profile" on public.profiles
   for all using (auth.uid() = id) with check (auth.uid() = id);
@@ -142,6 +157,9 @@ create policy "own body_weights" on public.body_weights
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "own progress_photos" on public.progress_photos
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "own notes" on public.notes
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create or replace function public.handle_new_user()

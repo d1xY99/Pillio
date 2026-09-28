@@ -10,6 +10,7 @@ import {
   exercises,
   habitLogs,
   habits,
+  notes,
   progressPhotos,
   schedules,
   supplements,
@@ -18,7 +19,7 @@ import {
 } from '@/db/schema';
 import { startOfLocalDay, endOfLocalDay } from '@/domain/time';
 
-export type CloudSlice = 'stack' | 'gym' | 'body' | 'habits';
+export type CloudSlice = 'stack' | 'gym' | 'body' | 'habits' | 'notes';
 
 let syncDepth = 0;
 let clearing: Promise<void> | null = null;
@@ -62,6 +63,8 @@ function wipeSlice(slice: CloudSlice) {
   } else if (slice === 'habits') {
     db.delete(habitLogs).run();
     db.delete(habits).run();
+  } else if (slice === 'notes') {
+    db.delete(notes).run();
   } else {
     db.delete(bodyWeights).run();
     db.delete(progressPhotos).run();
@@ -90,6 +93,7 @@ export async function clearLocalUserData() {
       wipeSlice('gym');
       wipeSlice('body');
       wipeSlice('habits');
+      wipeSlice('notes');
       resetCloudPullState();
       writeLocalOwner(null);
       await flushLocalPersist();
@@ -117,6 +121,7 @@ export async function adoptUser(userId: string) {
 export async function pullFromCloud() {
   await pullSlice('stack');
   await pullSlice('habits');
+  await pullSlice('notes');
   await pullSlice('gym');
   await pullSlice('body');
 }
@@ -201,6 +206,30 @@ async function doPullSlice(slice: CloudSlice) {
             })
             .run(),
         data.logs,
+      );
+    } else if (slice === 'notes') {
+      const data = await apiGet<{ notes: any[] }>('/notes');
+      if ((pullEpoch[slice] ?? 0) !== epoch) return;
+      wipeSlice('notes');
+      if ((pullEpoch[slice] ?? 0) !== epoch) return;
+      const db = getDb();
+      insertRows(
+        (row) =>
+          db
+            .insert(notes)
+            .values({
+              id: String(row.id),
+              title: String(row.title ?? 'Untitled'),
+              body: String(row.body ?? ''),
+              category: String(row.category ?? 'general'),
+              color: String(row.color ?? '#3EE0B7'),
+              pinned: Boolean(row.pinned),
+              archived: Boolean(row.archived),
+              createdAt: Number(row.createdAt ?? Date.now()),
+              updatedAt: Number(row.updatedAt ?? row.createdAt ?? Date.now()),
+            })
+            .run(),
+        data.notes,
       );
     } else if (slice === 'gym') {
       const data = await apiGet<{ exercises: any[]; sessions: any[]; sets: any[] }>('/train');

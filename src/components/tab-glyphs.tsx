@@ -33,6 +33,17 @@ export function TabGlyph({
       </View>
     );
   }
+  if (route === 'notes') {
+    return (
+      <View style={styles.box}>
+        <View style={[styles.notePage, { borderColor: color }]}>
+          <View style={[styles.noteLine, { backgroundColor: color, top: 5 }]} />
+          <View style={[styles.noteLine, { backgroundColor: color, top: 10 }]} />
+          <View style={[styles.noteLineShort, { backgroundColor: color, top: 15 }]} />
+        </View>
+      </View>
+    );
+  }
   if (route === 'train') {
     return (
       <View style={[styles.box, styles.row]}>
@@ -117,6 +128,26 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 1,
     transform: [{ rotate: '-40deg' }, { translateY: 1 }],
+  },
+  notePage: {
+    width: 15,
+    height: 18,
+    borderRadius: 3,
+    borderWidth: 1.8,
+  },
+  noteLine: {
+    position: 'absolute',
+    left: 3,
+    width: 7,
+    height: 1.6,
+    borderRadius: 1,
+  },
+  noteLineShort: {
+    position: 'absolute',
+    left: 3,
+    width: 4,
+    height: 1.6,
+    borderRadius: 1,
   },
   head: {
     width: 7,

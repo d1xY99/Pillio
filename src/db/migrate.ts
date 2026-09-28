@@ -129,12 +129,29 @@ const MIGRATION_4 = [
 
 const MIGRATION_5 = [`ALTER TABLE supplements ADD COLUMN draw_display TEXT NOT NULL DEFAULT 'units'`];
 
+const MIGRATION_6 = [
+  `CREATE TABLE IF NOT EXISTS notes (
+    id TEXT PRIMARY KEY NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL,
+    color TEXT NOT NULL,
+    pinned INTEGER NOT NULL DEFAULT 0,
+    archived INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS notes_archived_idx ON notes (archived)`,
+  `CREATE INDEX IF NOT EXISTS notes_category_idx ON notes (category)`,
+];
+
 const MIGRATIONS: { version: number; statements: string[] }[] = [
   { version: 1, statements: MIGRATION_1 },
   { version: 2, statements: MIGRATION_2 },
   { version: 3, statements: MIGRATION_3 },
   { version: 4, statements: MIGRATION_4 },
   { version: 5, statements: MIGRATION_5 },
+  { version: 6, statements: MIGRATION_6 },
 ];
 
 export function applySqlMigrations(executor: SqlExecutor) {
