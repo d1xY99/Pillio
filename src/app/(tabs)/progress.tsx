@@ -7,6 +7,7 @@ import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
 
 import { Button } from '@/components/button';
+import { Columns } from '@/components/columns';
 import { ChoiceChips } from '@/components/choice-chips';
 import { EmptyState } from '@/components/empty-state';
 import { HeroBanner } from '@/components/hero-banner';
@@ -72,171 +73,190 @@ export default function ProgressScreen() {
     [photoTick, filter],
   );
   const chartData = [...weights].reverse().map((row) => ({ value: row.weightKg }));
-  const tile = (width - Spacing.four * 2 - Spacing.two * 2) / 3;
+  // Measure the real column widths: on the iPhone Duo inner display the content is narrower
+  // than the window (side rail, two columns), so window-based sizes would overflow.
+  const [chartBoxWidth, setChartBoxWidth] = useState(0);
+  const [gridWidth, setGridWidth] = useState(0);
+  // LineChart draws a 35pt y-axis label column outside `width`; leave room for it.
+  const chartWidth = chartBoxWidth ? chartBoxWidth - Spacing.three * 2 - 40 : width - 80;
+  const tile = ((gridWidth || width - Spacing.four * 2) - Spacing.two * 2) / 3;
 
   return (
-    <Screen>
+    <Screen columns>
       <ScreenHeader title="Progress" subtitle="Body weight and photos" right={<MenuButton />} />
 
-      <HeroBanner
-        source={ART.progress}
-        kicker="PHYSIQUE"
-        title={latest ? formatKg(latest.weightKg) : 'Log the first weigh-in.'}
-        body={latest ? formatDayLabel(latest.loggedAt) : 'Track weight and compare photos over time.'}
-      />
+      <Columns
+        left={
+          <>
+            <HeroBanner
+              source={ART.progress}
+              kicker="PHYSIQUE"
+              title={latest ? formatKg(latest.weightKg) : 'Log the first weigh-in.'}
+              body={latest ? formatDayLabel(latest.loggedAt) : 'Track weight and compare photos over time.'}
+            />
 
-      <View style={[styles.hero, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <ThemedText type="captionBold" themeColor="textTertiary">
-          CURRENT WEIGHT
-        </ThemedText>
-        <ThemedText type="display">{latest ? formatKg(latest.weightKg) : '—'}</ThemedText>
-        {latest ? (
-          <ThemedText type="caption" themeColor="textSecondary">
-            {formatDayLabel(latest.loggedAt)}
-          </ThemedText>
-        ) : null}
-      </View>
-
-      <View style={styles.row}>
-        <View style={styles.flex}>
-          <TextField
-            label="Log weight (kg)"
-            value={weight}
-            onChangeText={setWeight}
-            keyboardType="decimal-pad"
-            placeholder="82.4"
-          />
-        </View>
-      </View>
-      <Button
-        label="Save weight"
-        onPress={() => {
-          const value = Number(weight);
-          if (!Number.isFinite(value) || value <= 0) return;
-          addBodyWeight({ weightKg: value });
-          setWeight('');
-        }}
-      />
-
-      {chartData.length >= 2 ? (
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <LineChart
-            data={chartData}
-            width={Math.max(220, width - 80)}
-            height={140}
-            color={theme.accent}
-            thickness={3}
-            hideRules
-            yAxisColor={theme.border}
-            xAxisColor={theme.border}
-            yAxisTextStyle={{ color: theme.textTertiary, fontSize: 11 }}
-            dataPointsColor={theme.accent}
-            backgroundColor="transparent"
-            isAnimated={false}
-            adjustToWidth
-          />
-        </View>
-      ) : null}
-
-      {weights.length > 0 ? (
-        <View style={styles.section}>
-          {weights.slice(0, 6).map((row) => (
-            <View key={row.id} style={styles.weightRow}>
-              <ThemedText type="callout">
-                {formatDayLabel(row.loggedAt)} · {formatKg(row.weightKg)}
+            <View style={[styles.hero, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <ThemedText type="captionBold" themeColor="textTertiary">
+                CURRENT WEIGHT
               </ThemedText>
-              <Pressable onPress={() => deleteBodyWeight(row.id)}>
-                <ThemedText type="captionBold" themeColor="danger">
-                  Delete
+              <ThemedText type="display">{latest ? formatKg(latest.weightKg) : '—'}</ThemedText>
+              {latest ? (
+                <ThemedText type="caption" themeColor="textSecondary">
+                  {formatDayLabel(latest.loggedAt)}
                 </ThemedText>
-              </Pressable>
+              ) : null}
             </View>
-          ))}
-        </View>
-      ) : null}
 
-      <View style={styles.photosHeader}>
-        <ThemedText type="headline">Photos</ThemedText>
-        {photos.length >= 2 ? (
-          <Pressable onPress={() => router.push('/photo/compare')}>
-            <ThemedText type="callout" themeColor="accent">
-              Compare
-            </ThemedText>
-          </Pressable>
-        ) : null}
-      </View>
-
-      <ThemedText type="captionBold" themeColor="textSecondary">
-        Pose for next photo
-      </ThemedText>
-      <ChoiceChips options={PHOTO_POSES} value={pose} labels={POSE_LABELS} onChange={setPose} />
-
-      <View style={styles.photoActions}>
-        <View style={styles.flex}>
-          <Button
-            label="Camera"
-            variant="secondary"
-            onPress={() => {
-              void captureProgressPhoto('camera').then((uri) => {
-                if (uri) addProgressPhoto({ localUri: uri, pose });
-              });
-            }}
-          />
-        </View>
-        <View style={styles.flex}>
-          <Button
-            label="Library"
-            variant="secondary"
-            onPress={() => {
-              void captureProgressPhoto('library').then((uri) => {
-                if (uri) addProgressPhoto({ localUri: uri, pose });
-              });
-            }}
-          />
-        </View>
-      </View>
-
-      <ChoiceChips
-        options={POSE_FILTER}
-        value={filter}
-        labels={POSE_FILTER_LABELS}
-        onChange={setFilter}
-      />
-
-      {photos.length === 0 ? (
-        <EmptyState
-          icon="camera.fill"
-          title="No photos yet"
-          body="Add front, side, or back shots so you can compare how you look over time."
-        />
-      ) : (
-        <View style={styles.grid}>
-          {photos.map((photo) => (
-            <Pressable
-              key={photo.id}
-              onLongPress={() => {
-                void confirmAction(
-                  'Delete photo?',
-                  'This removes it from Pillio on this device.',
-                  'Delete',
-                ).then((ok) => {
-                  if (!ok) return;
-                  deletePhotoFile(photo.localUri);
-                  deleteProgressPhoto(photo.id);
-                });
-              }}
-              style={[styles.tile, { width: tile, height: tile * 1.25 }]}>
-              <Image source={{ uri: photo.localUri }} style={styles.image} contentFit="cover" />
-              <View style={styles.caption}>
-                <ThemedText type="captionBold">{POSE_LABELS[photo.pose as PhotoPose]}</ThemedText>
-                <ThemedText type="caption" themeColor="textTertiary">
-                  {formatDayLabel(photo.takenAt)}
-                </ThemedText>
+            <View style={styles.row}>
+              <View style={styles.flex}>
+                <TextField
+                  label="Log weight (kg)"
+                  value={weight}
+                  onChangeText={setWeight}
+                  keyboardType="decimal-pad"
+                  placeholder="82.4"
+                />
               </View>
-            </Pressable>
-          ))}
-        </View>
-      )}
+            </View>
+            <Button
+              label="Save weight"
+              onPress={() => {
+                const value = Number(weight);
+                if (!Number.isFinite(value) || value <= 0) return;
+                addBodyWeight({ weightKg: value });
+                setWeight('');
+              }}
+            />
+
+            {chartData.length >= 2 ? (
+              <View
+                onLayout={(event) => setChartBoxWidth(Math.floor(event.nativeEvent.layout.width))}
+                style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <LineChart
+                  data={chartData}
+                  width={Math.max(220, chartWidth)}
+                  height={140}
+                  color={theme.accent}
+                  thickness={3}
+                  hideRules
+                  yAxisColor={theme.border}
+                  xAxisColor={theme.border}
+                  yAxisTextStyle={{ color: theme.textTertiary, fontSize: 11 }}
+                  dataPointsColor={theme.accent}
+                  backgroundColor="transparent"
+                  isAnimated={false}
+                  adjustToWidth
+                />
+              </View>
+            ) : null}
+
+            {weights.length > 0 ? (
+              <View style={styles.section}>
+                {weights.slice(0, 6).map((row) => (
+                  <View key={row.id} style={styles.weightRow}>
+                    <ThemedText type="callout">
+                      {formatDayLabel(row.loggedAt)} · {formatKg(row.weightKg)}
+                    </ThemedText>
+                    <Pressable onPress={() => deleteBodyWeight(row.id)}>
+                      <ThemedText type="captionBold" themeColor="danger">
+                        Delete
+                      </ThemedText>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </>
+        }
+        right={
+          <>
+            <View style={styles.photosHeader}>
+              <ThemedText type="headline">Photos</ThemedText>
+              {photos.length >= 2 ? (
+                <Pressable onPress={() => router.push('/photo/compare')}>
+                  <ThemedText type="callout" themeColor="accent">
+                    Compare
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+            </View>
+
+            <ThemedText type="captionBold" themeColor="textSecondary">
+              Pose for next photo
+            </ThemedText>
+            <ChoiceChips options={PHOTO_POSES} value={pose} labels={POSE_LABELS} onChange={setPose} />
+
+            <View style={styles.photoActions}>
+              <View style={styles.flex}>
+                <Button
+                  label="Camera"
+                  variant="secondary"
+                  onPress={() => {
+                    void captureProgressPhoto('camera').then((uri) => {
+                      if (uri) addProgressPhoto({ localUri: uri, pose });
+                    });
+                  }}
+                />
+              </View>
+              <View style={styles.flex}>
+                <Button
+                  label="Library"
+                  variant="secondary"
+                  onPress={() => {
+                    void captureProgressPhoto('library').then((uri) => {
+                      if (uri) addProgressPhoto({ localUri: uri, pose });
+                    });
+                  }}
+                />
+              </View>
+            </View>
+
+            <ChoiceChips
+              options={POSE_FILTER}
+              value={filter}
+              labels={POSE_FILTER_LABELS}
+              onChange={setFilter}
+            />
+
+            {photos.length === 0 ? (
+              <EmptyState
+                icon="camera.fill"
+                title="No photos yet"
+                body="Add front, side, or back shots so you can compare how you look over time."
+              />
+            ) : (
+              <View
+                style={styles.grid}
+                onLayout={(event) => setGridWidth(Math.floor(event.nativeEvent.layout.width))}>
+                {photos.map((photo) => (
+                  <Pressable
+                    key={photo.id}
+                    onLongPress={() => {
+                      void confirmAction(
+                        'Delete photo?',
+                        'This removes it from Pillio on this device.',
+                        'Delete',
+                      ).then((ok) => {
+                        if (!ok) return;
+                        deletePhotoFile(photo.localUri);
+                        deleteProgressPhoto(photo.id);
+                      });
+                    }}
+                    style={[styles.tile, { width: tile, height: tile * 1.25 }]}>
+                    <Image source={{ uri: photo.localUri }} style={styles.image} contentFit="cover" />
+                    <View style={styles.caption}>
+                      <ThemedText type="captionBold">{POSE_LABELS[photo.pose as PhotoPose]}</ThemedText>
+                      <ThemedText type="caption" themeColor="textTertiary">
+                        {formatDayLabel(photo.takenAt)}
+                      </ThemedText>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </>
+        }
+      />
     </Screen>
   );
 }

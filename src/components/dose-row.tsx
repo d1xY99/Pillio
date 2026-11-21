@@ -11,6 +11,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import type { SupplementType } from '@/db/types';
 import type { TodayDose } from '@/domain/doses';
 import { formatTimeMinutes } from '@/domain/time';
+import { useAdaptiveLayout } from '@/hooks/use-adaptive-layout';
 import { useTheme } from '@/hooks/use-theme';
 
 function formatDoseLine(item: TodayDose, timeMinutes: number, taken: boolean) {
@@ -39,6 +40,8 @@ export function DoseRow({
   onPress?: () => void;
 }) {
   const theme = useTheme();
+  // In a two-pane column the row is narrow; stack the badge under the name so it isn't cut.
+  const { twoPane } = useAdaptiveLayout();
   const taken = Boolean(item.takenAt);
   const time = new Date(item.scheduledFor);
   const timeMinutes = time.getHours() * 60 + time.getMinutes();
@@ -59,8 +62,8 @@ export function DoseRow({
           <ArtThumb type={item.supplement.type as SupplementType} size={54} />
         </View>
         <View style={styles.body}>
-          <View style={styles.top}>
-            <ThemedText type="headline" numberOfLines={1} style={styles.name}>
+          <View style={[styles.top, twoPane && styles.topStacked]}>
+            <ThemedText type="headline" numberOfLines={1} style={!twoPane && styles.name}>
               {item.supplement.name}
             </ThemedText>
             <TypeBadge type={item.supplement.type as SupplementType} />
@@ -104,6 +107,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+  },
+  topStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 4,
   },
   name: {
     flex: 1,

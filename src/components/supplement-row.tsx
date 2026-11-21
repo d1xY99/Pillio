@@ -11,6 +11,7 @@ import { formatPeptideDraw } from '@/domain/peptide';
 import { Radius, Spacing } from '@/constants/theme';
 import type { Supplement } from '@/db/schema';
 import type { SupplementForm, SupplementType } from '@/db/types';
+import { useAdaptiveLayout } from '@/hooks/use-adaptive-layout';
 import { useTheme } from '@/hooks/use-theme';
 
 export function SupplementRow({
@@ -25,6 +26,7 @@ export function SupplementRow({
   check?: { taken: boolean; overdue?: boolean; onToggle: () => void };
 }) {
   const theme = useTheme();
+  const { twoPane } = useAdaptiveLayout();
   const tracked = item.trackInventory && item.quantityOnHand != null;
   const low = isLowStock(item);
 
@@ -43,8 +45,8 @@ export function SupplementRow({
           <ArtThumb type={item.type as SupplementType} size={54} />
         </View>
         <View style={styles.body}>
-          <View style={styles.titleRow}>
-            <ThemedText type="headline" style={styles.name} numberOfLines={1}>
+          <View style={[styles.titleRow, twoPane && styles.titleRowWrap]}>
+            <ThemedText type="headline" style={twoPane ? styles.nameFull : styles.name} numberOfLines={1}>
               {item.name}
             </ThemedText>
             <TypeBadge type={item.type as SupplementType} />
@@ -116,6 +118,13 @@ const styles = StyleSheet.create({
   },
   name: {
     flex: 1,
+  },
+  // Two-pane column: the name gets its own line and the badges wrap below it.
+  titleRowWrap: {
+    flexWrap: 'wrap',
+  },
+  nameFull: {
+    flexBasis: '100%',
   },
   lowBadge: {
     paddingHorizontal: 7,

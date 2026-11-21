@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { Columns } from '@/components/columns';
 import { DoseRow } from '@/components/dose-row';
 import { SupplementRow } from '@/components/supplement-row';
 import { EmptyState } from '@/components/empty-state';
@@ -72,10 +73,7 @@ export default function TodayScreen() {
     [start, end],
   );
 
-  const doses = useMemo(
-    () => listTodayDoses(),
-    [updatedAt, nowTick],
-  );
+  const doses = useMemo(() => listTodayDoses(), [updatedAt, nowTick]);
   const parkedWeekly = useMemo(() => listParkedWeekly(), [updatedAt, nowTick]);
   const groups = groupDosesByTime(doses);
   const taken = doses.filter((dose) => dose.takenAt).length;
@@ -83,179 +81,188 @@ export default function TodayScreen() {
   const streak = useMemo(() => overallStreak(), [updatedAt, nowTick]);
 
   return (
-    <Screen>
-      <ScreenHeader
-        title="Today"
-        subtitle={formatToday()}
-        right={<MenuButton />}
-      />
+    <Screen columns>
+      <ScreenHeader title="Today" subtitle={formatToday()} right={<MenuButton />} />
 
-      {Platform.OS === 'web' && !webAlertsOn ? (
-        <FadeIn>
-          <GlassCard style={styles.permission}>
-            <ThemedText type="headline">Turn on reminders</ThemedText>
-            <ThemedText type="callout" themeColor="textSecondary">
-              Share this page → Add to Home Screen, then open Pillio from that icon. In Settings,
-              subscribe in ntfy so alerts still arrive when the phone is locked.
-            </ThemedText>
-            <Button label="Open menu" onPress={menu.show} />
-          </GlassCard>
-        </FadeIn>
-      ) : Platform.OS !== 'web' && permission !== 'granted' ? (
-        <FadeIn>
-          <GlassCard glow style={styles.permission}>
-            <ThemedText type="headline">Turn on reminders</ThemedText>
-            <ThemedText type="callout" themeColor="textSecondary">
-              Expo Go can alert you at the due time only if a dose is still open. Allow notifications,
-              then enable Reminder on each supplement.
-            </ThemedText>
-            <Button
-              label={permission === 'denied' ? 'Open iOS Settings' : 'Allow notifications'}
-              onPress={() => {
-                if (permission === 'denied') {
-                  void Linking.openSettings();
-                  return;
-                }
-                void requestReminderPermission().then((granted) => {
-                  setPermission(granted ? 'granted' : 'denied');
-                  if (granted) void syncDoseReminders();
-                });
-              }}
-            />
-          </GlassCard>
-        </FadeIn>
-      ) : null}
-
-      <View style={styles.filters}>
-        {(['daily', 'weekly'] as const).map((key) => {
-          const active = tab === key;
-          return (
-            <Pressable
-              key={key}
-              onPress={() => setTab(key)}
-              style={[
-                styles.filter,
-                {
-                  backgroundColor: active ? theme.accentMuted : theme.surface,
-                  borderColor: active ? theme.accent : theme.border,
-                },
-              ]}>
-              <ThemedText type="captionBold" style={{ color: active ? theme.accent : theme.textSecondary }}>
-                {key === 'daily' ? 'Daily' : 'Weekly'}
-              </ThemedText>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <HeroBanner
-        compact
-        kicker={tab === 'weekly' ? 'WEEKLY' : 'DAILY STACK'}
-        title={
-          tab === 'weekly'
-            ? parkedWeekly.length
-              ? `${parkedWeekly.length} waiting`
-              : 'Nothing parked'
-            : streak > 0
-              ? `${streak}-day streak`
-              : total === 0
-                ? 'Build the ritual'
-                : taken === total
-                  ? 'Stack complete'
-                  : 'Stay on protocol'
-        }
-      />
-
-      {tab === 'daily' ? (
-        <>
-          <FadeIn delay={80}>
-            <GlassCard glow={total > 0 && taken < total} padded={false} style={styles.summary}>
-              <PulseRing color={theme.accent} active={total > 0 && taken < total}>
-                <View
-                  style={[
-                    styles.ring,
-                    { borderColor: total > 0 && taken === total ? theme.accent : theme.border },
-                  ]}>
-                  <ThemedText type="headline">{taken}</ThemedText>
-                  <ThemedText type="caption" themeColor="textTertiary">
-                    of {total}
+      <Columns
+        left={
+          <>
+            {Platform.OS === 'web' && !webAlertsOn ? (
+              <FadeIn>
+                <GlassCard style={styles.permission}>
+                  <ThemedText type="headline">Turn on reminders</ThemedText>
+                  <ThemedText type="callout" themeColor="textSecondary">
+                    Share this page → Add to Home Screen, then open Pillio from that icon. In Settings,
+                    subscribe in ntfy so alerts still arrive when the phone is locked.
                   </ThemedText>
-                </View>
-              </PulseRing>
-              <View style={styles.summaryCopy}>
-                <ThemedText type="headline">
-                  {total === 0 ? 'Nothing due' : taken === total ? 'All taken' : `${total - taken} remaining`}
-                </ThemedText>
-                <ThemedText type="callout" themeColor="textSecondary">
-                  Weekly items join this list only on their day.
-                </ThemedText>
-              </View>
-            </GlassCard>
-          </FadeIn>
+                  <Button label="Open menu" onPress={menu.show} />
+                </GlassCard>
+              </FadeIn>
+            ) : Platform.OS !== 'web' && permission !== 'granted' ? (
+              <FadeIn>
+                <GlassCard glow style={styles.permission}>
+                  <ThemedText type="headline">Turn on reminders</ThemedText>
+                  <ThemedText type="callout" themeColor="textSecondary">
+                    Expo Go can alert you at the due time only if a dose is still open. Allow notifications,
+                    then enable Reminder on each supplement.
+                  </ThemedText>
+                  <Button
+                    label={permission === 'denied' ? 'Open iOS Settings' : 'Allow notifications'}
+                    onPress={() => {
+                      if (permission === 'denied') {
+                        void Linking.openSettings();
+                        return;
+                      }
+                      void requestReminderPermission().then((granted) => {
+                        setPermission(granted ? 'granted' : 'denied');
+                        if (granted) void syncDoseReminders();
+                      });
+                    }}
+                  />
+                </GlassCard>
+              </FadeIn>
+            ) : null}
 
-          {total === 0 ? (
-            <FadeIn delay={160}>
-              <EmptyState
-                icon="checkmark.circle"
-                title="Your day is clear"
-                body="Daily doses show here. Once-a-week items wait under Weekly until their day."
-                actionLabel="Go to Stack"
-                onAction={() => router.push('/stack')}
-              />
-            </FadeIn>
-          ) : (
-            <View style={styles.groups}>
-              {groups.map((group, groupIndex) => (
-                <FadeIn key={group.time} delay={120 + groupIndex * 70}>
-                  <View style={styles.group}>
-                    <ThemedText type="captionBold" themeColor="textTertiary">
-                      {formatTimeMinutes(group.time).toUpperCase()}
+            <View style={styles.filters}>
+              {(['daily', 'weekly'] as const).map((key) => {
+                const active = tab === key;
+                return (
+                  <Pressable
+                    key={key}
+                    onPress={() => setTab(key)}
+                    style={[
+                      styles.filter,
+                      {
+                        backgroundColor: active ? theme.accentMuted : theme.surface,
+                        borderColor: active ? theme.accent : theme.border,
+                      },
+                    ]}>
+                    <ThemedText
+                      type="captionBold"
+                      style={{ color: active ? theme.accent : theme.textSecondary }}>
+                      {key === 'daily' ? 'Daily' : 'Weekly'}
                     </ThemedText>
-                    {group.items.map((item) => (
-                      <DoseRow
-                        key={item.id}
-                        item={item}
-                        onPress={() =>
-                          router.push({ pathname: '/supplement/[id]', params: { id: item.supplementId } })
-                        }
-                        onToggle={() => {
-                          if (item.takenAt) {
-                            void untakeDose(item.id);
-                          } else {
-                            void takeDose(item.id, {
-                              amount: item.supplement.defaultAmount,
-                              unit: item.supplement.defaultUnit as DoseUnit,
-                            });
-                          }
-                        }}
-                      />
-                    ))}
-                  </View>
-                </FadeIn>
-              ))}
+                  </Pressable>
+                );
+              })}
             </View>
-          )}
-        </>
-      ) : parkedWeekly.length === 0 ? (
-        <EmptyState
-          icon="pills.fill"
-          title="No weekly items waiting"
-          body="Add a supplement in Stack and set Frequency to Weekly. On its day it moves into Daily so you can check it off."
-        />
-      ) : (
-        <View style={styles.groups}>
-          {parkedWeekly.map((row) => (
-            <SupplementRow
-              key={row.supplement.id}
-              item={row.supplement}
-              status={`Next ${row.nextLabel}`}
-              onPress={() =>
-                router.push({ pathname: '/supplement/[id]', params: { id: row.supplement.id } })
+
+            <HeroBanner
+              compact
+              kicker={tab === 'weekly' ? 'WEEKLY' : 'DAILY STACK'}
+              title={
+                tab === 'weekly'
+                  ? parkedWeekly.length
+                    ? `${parkedWeekly.length} waiting`
+                    : 'Nothing parked'
+                  : streak > 0
+                    ? `${streak}-day streak`
+                    : total === 0
+                      ? 'Build the ritual'
+                      : taken === total
+                        ? 'Stack complete'
+                        : 'Stay on protocol'
               }
             />
-          ))}
-        </View>
-      )}
+
+            {tab === 'daily' ? (
+              <FadeIn delay={80}>
+                <GlassCard glow={total > 0 && taken < total} padded={false} style={styles.summary}>
+                  <PulseRing color={theme.accent} active={total > 0 && taken < total}>
+                    <View
+                      style={[
+                        styles.ring,
+                        { borderColor: total > 0 && taken === total ? theme.accent : theme.border },
+                      ]}>
+                      <ThemedText type="headline">{taken}</ThemedText>
+                      <ThemedText type="caption" themeColor="textTertiary">
+                        of {total}
+                      </ThemedText>
+                    </View>
+                  </PulseRing>
+                  <View style={styles.summaryCopy}>
+                    <ThemedText type="headline">
+                      {total === 0
+                        ? 'Nothing due'
+                        : taken === total
+                          ? 'All taken'
+                          : `${total - taken} remaining`}
+                    </ThemedText>
+                    <ThemedText type="callout" themeColor="textSecondary">
+                      Weekly items join this list only on their day.
+                    </ThemedText>
+                  </View>
+                </GlassCard>
+              </FadeIn>
+            ) : null}
+          </>
+        }
+        right={
+          tab === 'daily' ? (
+            total === 0 ? (
+              <FadeIn delay={160}>
+                <EmptyState
+                  icon="checkmark.circle"
+                  title="Your day is clear"
+                  body="Daily doses show here. Once-a-week items wait under Weekly until their day."
+                  actionLabel="Go to Stack"
+                  onAction={() => router.push('/stack')}
+                />
+              </FadeIn>
+            ) : (
+              <View style={styles.groups}>
+                {groups.map((group, groupIndex) => (
+                  <FadeIn key={group.time} delay={120 + groupIndex * 70}>
+                    <View style={styles.group}>
+                      <ThemedText type="captionBold" themeColor="textTertiary">
+                        {formatTimeMinutes(group.time).toUpperCase()}
+                      </ThemedText>
+                      {group.items.map((item) => (
+                        <DoseRow
+                          key={item.id}
+                          item={item}
+                          onPress={() =>
+                            router.push({ pathname: '/supplement/[id]', params: { id: item.supplementId } })
+                          }
+                          onToggle={() => {
+                            if (item.takenAt) {
+                              void untakeDose(item.id);
+                            } else {
+                              void takeDose(item.id, {
+                                amount: item.supplement.defaultAmount,
+                                unit: item.supplement.defaultUnit as DoseUnit,
+                              });
+                            }
+                          }}
+                        />
+                      ))}
+                    </View>
+                  </FadeIn>
+                ))}
+              </View>
+            )
+          ) : parkedWeekly.length === 0 ? (
+            <EmptyState
+              icon="pills.fill"
+              title="No weekly items waiting"
+              body="Add a supplement in Stack and set Frequency to Weekly. On its day it moves into Daily so you can check it off."
+            />
+          ) : (
+            <View style={styles.groups}>
+              {parkedWeekly.map((row) => (
+                <SupplementRow
+                  key={row.supplement.id}
+                  item={row.supplement}
+                  status={`Next ${row.nextLabel}`}
+                  onPress={() =>
+                    router.push({ pathname: '/supplement/[id]', params: { id: row.supplement.id } })
+                  }
+                />
+              ))}
+            </View>
+          )
+        }
+      />
     </Screen>
   );
 }

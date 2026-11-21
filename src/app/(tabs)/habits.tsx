@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { EmptyState } from '@/components/empty-state';
+import { Columns } from '@/components/columns';
 import { FadeIn as FadeBlock } from '@/components/fade-in';
 import { HabitLaneCard } from '@/components/habit-lane-card';
 import { HabitRow } from '@/components/habit-row';
@@ -74,10 +75,11 @@ export default function HabitsScreen() {
   const remaining = Math.max(total - done, 0);
   const heroTitle =
     total === 0 ? 'Build the day' : done === total ? 'All checked' : `${remaining} still open`;
-  const listLabel = filter === 'all' ? 'Today' : (HABIT_CATEGORIES.find((row) => row.id === filter)?.label ?? 'Today');
+  const listLabel =
+    filter === 'all' ? 'Today' : (HABIT_CATEGORIES.find((row) => row.id === filter)?.label ?? 'Today');
 
   return (
-    <Screen>
+    <Screen columns>
       <ScreenHeader
         title="Habits"
         subtitle="Daily actions"
@@ -113,71 +115,80 @@ export default function HabitsScreen() {
         </View>
       </Animated.View>
 
-      <View style={styles.sectionHead}>
-        <ThemedText type="captionBold" themeColor="textTertiary" style={styles.sectionKicker}>
-          LANES
-        </ThemedText>
-        <Pressable onPress={() => setFilter('all')} hitSlop={8} accessibilityLabel="Show all habits">
-          <ThemedText type="captionBold" themeColor={filter === 'all' ? 'accent' : 'textSecondary'}>
-            All
-          </ThemedText>
-        </Pressable>
-      </View>
-      <View style={styles.lanes}>
-        {LANE_ROWS.map((row, rowIndex) => (
-          <View key={row.map((item) => item.id).join('-')} style={styles.laneRow}>
-            {row.map((cat, index) => (
-              <HabitLaneCard
-                key={cat.id}
-                label={cat.label}
-                meta={`${counts[cat.id] ?? 0}`}
-                source={habitCategoryArt(cat.id)}
-                selected={filter === cat.id}
-                delay={40 + (rowIndex * 3 + index) * 40}
-                onPress={() => setFilter((current) => (current === cat.id ? 'all' : cat.id))}
-              />
-            ))}
-          </View>
-        ))}
-      </View>
+      <Columns
+        left={
+          <>
+            <View style={styles.sectionHead}>
+              <ThemedText type="captionBold" themeColor="textTertiary" style={styles.sectionKicker}>
+                LANES
+              </ThemedText>
+              <Pressable onPress={() => setFilter('all')} hitSlop={8} accessibilityLabel="Show all habits">
+                <ThemedText type="captionBold" themeColor={filter === 'all' ? 'accent' : 'textSecondary'}>
+                  All
+                </ThemedText>
+              </Pressable>
+            </View>
+            <View style={styles.lanes}>
+              {LANE_ROWS.map((row, rowIndex) => (
+                <View key={row.map((item) => item.id).join('-')} style={styles.laneRow}>
+                  {row.map((cat, index) => (
+                    <HabitLaneCard
+                      key={cat.id}
+                      label={cat.label}
+                      meta={`${counts[cat.id] ?? 0}`}
+                      source={habitCategoryArt(cat.id)}
+                      selected={filter === cat.id}
+                      delay={40 + (rowIndex * 3 + index) * 40}
+                      onPress={() => setFilter((current) => (current === cat.id ? 'all' : cat.id))}
+                    />
+                  ))}
+                </View>
+              ))}
+            </View>
+          </>
+        }
+        right={
+          <>
+            <View style={styles.sectionHead}>
+              <ThemedText type="captionBold" themeColor="textTertiary" style={styles.sectionKicker}>
+                {listLabel.toUpperCase()}
+              </ThemedText>
+              <ThemedText type="caption" themeColor="textTertiary">
+                {filtered.length}
+              </ThemedText>
+            </View>
 
-      <View style={styles.sectionHead}>
-        <ThemedText type="captionBold" themeColor="textTertiary" style={styles.sectionKicker}>
-          {listLabel.toUpperCase()}
-        </ThemedText>
-        <ThemedText type="caption" themeColor="textTertiary">
-          {filtered.length}
-        </ThemedText>
-      </View>
-
-      {filtered.length === 0 ? (
-        <FadeBlock delay={80}>
-          <EmptyState
-            icon="checkmark.circle"
-            title={archivedOff.length ? 'Nothing in this lane' : 'No habits yet'}
-            body={
-              archivedOff.length
-                ? 'Try another category, or add a ritual for today.'
-                : 'Pick a category, give it a name, check it off like Today.'
-            }
-          />
-        </FadeBlock>
-      ) : (
-        <View style={styles.list}>
-          {filtered.map((item, index) => (
-            <HabitRow
-              key={item.habit.id}
-              item={item}
-              index={index}
-              onPress={() => router.push({ pathname: '/habit/[id]', params: { id: item.habit.id } })}
-              onToggle={() => {
-                toggleTodayHabit(item);
-                setTick((value) => value + 1);
-              }}
-            />
-          ))}
-        </View>
-      )}
+            {filtered.length === 0 ? (
+              <FadeBlock delay={80}>
+                <EmptyState
+                  icon="checkmark.circle"
+                  title={archivedOff.length ? 'Nothing in this lane' : 'No habits yet'}
+                  body={
+                    archivedOff.length
+                      ? 'Try another category, or add a ritual for today.'
+                      : 'Pick a category, give it a name, check it off like Today.'
+                  }
+                />
+              </FadeBlock>
+            ) : (
+              <View style={styles.list}>
+                {filtered.map((item, index) => (
+                  <HabitRow
+                    key={item.habit.id}
+                    item={item}
+                    index={index}
+                    onPress={() => router.push({ pathname: '/habit/[id]', params: { id: item.habit.id } })}
+                    onToggle={() => {
+                      toggleTodayHabit(item);
+                      setTick((value) => value + 1);
+                    }}
+                  />
+                ))}
+              </View>
+            )}
+          </>
+        }
+      />
     </Screen>
   );
 }
@@ -194,9 +205,7 @@ function buildTodayHabits(): TodayHabit[] {
   return listHabits(false)
     .filter((habit) => isHabitDueOnDay(habit, start))
     .map((habit) => {
-      const rows = logs
-        .filter((log) => log.habitId === habit.id)
-        .sort((a, b) => a.occurrence - b.occurrence);
+      const rows = logs.filter((log) => log.habitId === habit.id).sort((a, b) => a.occurrence - b.occurrence);
       const done = rows.filter((log) => log.takenAt).length;
       const total = Math.max(rows.length, habit.timesPerDay);
       return { habit, logs: rows, done, total, complete: done >= total && total > 0 };

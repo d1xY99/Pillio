@@ -3,6 +3,7 @@ import { useCallback, useLayoutEffect, useMemo, useState, type ReactNode } from 
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { EmptyState } from '@/components/empty-state';
+import { Columns } from '@/components/columns';
 import { FadeIn } from '@/components/fade-in';
 import { GlassCard } from '@/components/glass-card';
 import { HeroBanner } from '@/components/hero-banner';
@@ -57,7 +58,7 @@ export default function AnalyticsScreen() {
     recap.stackDue === 0 && recap.habitDue === 0 && recap.workouts === 0 && recap.weightDelta == null;
 
   return (
-    <Screen>
+    <Screen columns>
       <ScreenHeader title="Analytics" subtitle="Weekly recap" right={<MenuButton />} />
 
       <HeroBanner
@@ -67,126 +68,138 @@ export default function AnalyticsScreen() {
         source={ART.progress}
       />
 
-      <View style={styles.weekNav}>
-        <Pressable
-          onPress={() => setWeekStart((value) => addLocalDays(value, -7))}
-          hitSlop={10}
-          accessibilityLabel="Previous week">
-          <UiIcon name="arrow.left" color={theme.text} size={16} />
-        </Pressable>
-        <View style={styles.weekCopy}>
-          <ThemedText type="captionBold">{recap.isCurrent ? 'This week' : 'Past week'}</ThemedText>
-          <ThemedText type="caption" themeColor="textTertiary">
-            {formatWeekRange(weekStart)}
-          </ThemedText>
-        </View>
-        <Pressable
-          onPress={() => canNext && setWeekStart((value) => addLocalDays(value, 7))}
-          hitSlop={10}
-          disabled={!canNext}
-          accessibilityLabel="Next week"
-          style={{ opacity: canNext ? 1 : 0.28 }}>
-          <UiIcon name="chevron.right" color={theme.text} size={18} />
-        </Pressable>
-      </View>
-
-      <View style={styles.stats}>
-        <View style={styles.statRow}>
-          <StatTile label="Stack" value={formatPct(recap.stackPct)} hint={stackHint(recap)} />
-          <StatTile label="Habits" value={formatPct(recap.habitPct)} hint={habitHint(recap)} />
-        </View>
-        <View style={styles.statRow}>
-          <StatTile
-            label="Train"
-            value={String(recap.workouts)}
-            hint={recap.workouts === 1 ? 'session' : 'sessions'}
-          />
-          <StatTile
-            label="Weight"
-            value={recap.weightDelta == null ? '—' : formatDeltaKg(recap.weightDelta)}
-            hint={recap.weightEnd != null ? formatKg(recap.weightEnd) : 'no weigh-in'}
-          />
-        </View>
-      </View>
-
-      <WeekStrip days={recap.days} />
-
-      {empty ? (
-        <FadeIn delay={80}>
-          <EmptyState
-            icon="chart.line.uptrend.xyaxis"
-            title="No protocol data this week"
-            body="Check off Today, Habits, and Train. Weight on Body. This recap fills in from what you already log."
-          />
-        </FadeIn>
-      ) : (
-        <>
-          <Section
-            kicker="Stack"
-            value={formatPct(recap.stackPct)}
-            hint={
-              recap.stackDue
-                ? `${recap.stackTaken}/${recap.stackDue} doses · ${recap.stackStreak}-day streak`
-                : 'Nothing due'
-            }
-            delta={formatDeltaPct(recap.stackPct, recap.vsLast.stackPct)}>
-            {recap.supplements.length ? (
-              recap.supplements.map((row) => <RateRow key={row.id} row={row} />)
-            ) : (
-              <ThemedText type="callout" themeColor="textTertiary">
-                No doses in this window.
-              </ThemedText>
-            )}
-          </Section>
-
-          <Section
-            kicker="Habits"
-            value={formatPct(recap.habitPct)}
-            hint={
-              recap.habitDue
-                ? `${recap.habitDone}/${recap.habitDue} checks · ${recap.habitStreak}-day streak`
-                : 'No rituals due'
-            }
-            delta={formatDeltaPct(recap.habitPct, recap.vsLast.habitPct)}>
-            {recap.habits.length ? (
-              recap.habits.map((row) => <RateRow key={row.id} row={row} />)
-            ) : (
-              <ThemedText type="callout" themeColor="textTertiary">
-                No habits in this window.
-              </ThemedText>
-            )}
-          </Section>
-
-          <Section
-            kicker="Train"
-            value={String(recap.workouts)}
-            hint={trainHint(recap)}
-            delta={trainDelta(recap)}>
-            <View style={styles.split}>
-              <MiniStat label="Sets" value={String(recap.sets)} />
-              <MiniStat label="Volume" value={recap.volumeKg ? `${Math.round(recap.volumeKg)} kg` : '—'} />
-              <MiniStat label="Last week" value={String(recap.vsLast.workouts)} />
+      <Columns
+        left={
+          <>
+            <View style={styles.weekNav}>
+              <Pressable
+                onPress={() => setWeekStart((value) => addLocalDays(value, -7))}
+                hitSlop={10}
+                accessibilityLabel="Previous week">
+                <UiIcon name="arrow.left" color={theme.text} size={16} />
+              </Pressable>
+              <View style={styles.weekCopy}>
+                <ThemedText type="captionBold">{recap.isCurrent ? 'This week' : 'Past week'}</ThemedText>
+                <ThemedText type="caption" themeColor="textTertiary">
+                  {formatWeekRange(weekStart)}
+                </ThemedText>
+              </View>
+              <Pressable
+                onPress={() => canNext && setWeekStart((value) => addLocalDays(value, 7))}
+                hitSlop={10}
+                disabled={!canNext}
+                accessibilityLabel="Next week"
+                style={{ opacity: canNext ? 1 : 0.28 }}>
+                <UiIcon name="chevron.right" color={theme.text} size={18} />
+              </Pressable>
             </View>
-          </Section>
 
-          <Section
-            kicker="Body"
-            value={recap.weightEnd != null ? formatKg(recap.weightEnd) : '—'}
-            hint={bodyHint(recap)}>
-            <View style={styles.split}>
-              <MiniStat
-                label="Week Δ"
-                value={recap.weightDelta == null ? '—' : formatDeltaKg(recap.weightDelta)}
-              />
-              <MiniStat
-                label="Start"
-                value={recap.weightStart != null ? formatKg(recap.weightStart) : '—'}
-              />
-              <MiniStat label="Photos" value={String(recap.photos)} />
+            <View style={styles.stats}>
+              <View style={styles.statRow}>
+                <StatTile label="Stack" value={formatPct(recap.stackPct)} hint={stackHint(recap)} />
+                <StatTile label="Habits" value={formatPct(recap.habitPct)} hint={habitHint(recap)} />
+              </View>
+              <View style={styles.statRow}>
+                <StatTile
+                  label="Train"
+                  value={String(recap.workouts)}
+                  hint={recap.workouts === 1 ? 'session' : 'sessions'}
+                />
+                <StatTile
+                  label="Weight"
+                  value={recap.weightDelta == null ? '—' : formatDeltaKg(recap.weightDelta)}
+                  hint={recap.weightEnd != null ? formatKg(recap.weightEnd) : 'no weigh-in'}
+                />
+              </View>
             </View>
-          </Section>
-        </>
-      )}
+
+            <WeekStrip days={recap.days} />
+          </>
+        }
+        right={
+          <>
+            {empty ? (
+              <FadeIn delay={80}>
+                <EmptyState
+                  icon="chart.line.uptrend.xyaxis"
+                  title="No protocol data this week"
+                  body="Check off Today, Habits, and Train. Weight on Body. This recap fills in from what you already log."
+                />
+              </FadeIn>
+            ) : (
+              <>
+                <Section
+                  kicker="Stack"
+                  value={formatPct(recap.stackPct)}
+                  hint={
+                    recap.stackDue
+                      ? `${recap.stackTaken}/${recap.stackDue} doses · ${recap.stackStreak}-day streak`
+                      : 'Nothing due'
+                  }
+                  delta={formatDeltaPct(recap.stackPct, recap.vsLast.stackPct)}>
+                  {recap.supplements.length ? (
+                    recap.supplements.map((row) => <RateRow key={row.id} row={row} />)
+                  ) : (
+                    <ThemedText type="callout" themeColor="textTertiary">
+                      No doses in this window.
+                    </ThemedText>
+                  )}
+                </Section>
+
+                <Section
+                  kicker="Habits"
+                  value={formatPct(recap.habitPct)}
+                  hint={
+                    recap.habitDue
+                      ? `${recap.habitDone}/${recap.habitDue} checks · ${recap.habitStreak}-day streak`
+                      : 'No rituals due'
+                  }
+                  delta={formatDeltaPct(recap.habitPct, recap.vsLast.habitPct)}>
+                  {recap.habits.length ? (
+                    recap.habits.map((row) => <RateRow key={row.id} row={row} />)
+                  ) : (
+                    <ThemedText type="callout" themeColor="textTertiary">
+                      No habits in this window.
+                    </ThemedText>
+                  )}
+                </Section>
+
+                <Section
+                  kicker="Train"
+                  value={String(recap.workouts)}
+                  hint={trainHint(recap)}
+                  delta={trainDelta(recap)}>
+                  <View style={styles.split}>
+                    <MiniStat label="Sets" value={String(recap.sets)} />
+                    <MiniStat
+                      label="Volume"
+                      value={recap.volumeKg ? `${Math.round(recap.volumeKg)} kg` : '—'}
+                    />
+                    <MiniStat label="Last week" value={String(recap.vsLast.workouts)} />
+                  </View>
+                </Section>
+
+                <Section
+                  kicker="Body"
+                  value={recap.weightEnd != null ? formatKg(recap.weightEnd) : '—'}
+                  hint={bodyHint(recap)}>
+                  <View style={styles.split}>
+                    <MiniStat
+                      label="Week Δ"
+                      value={recap.weightDelta == null ? '—' : formatDeltaKg(recap.weightDelta)}
+                    />
+                    <MiniStat
+                      label="Start"
+                      value={recap.weightStart != null ? formatKg(recap.weightStart) : '—'}
+                    />
+                    <MiniStat label="Photos" value={String(recap.photos)} />
+                  </View>
+                </Section>
+              </>
+            )}
+          </>
+        }
+      />
     </Screen>
   );
 }
@@ -336,12 +349,7 @@ function WeekStrip({ days }: { days: DayPulse[] }) {
               </ThemedText>
               <View style={[styles.pip, { backgroundColor: stack }]} />
               <View style={[styles.pip, { backgroundColor: habit }]} />
-              <View
-                style={[
-                  styles.pip,
-                  { backgroundColor: day.trained ? theme.accent : theme.border },
-                ]}
-              />
+              <View style={[styles.pip, { backgroundColor: day.trained ? theme.accent : theme.border }]} />
             </View>
           );
         })}
