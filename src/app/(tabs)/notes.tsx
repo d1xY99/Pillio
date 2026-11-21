@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Columns } from '@/components/columns';
 import { EmptyState } from '@/components/empty-state';
 import { FadeIn as FadeBlock } from '@/components/fade-in';
 import { MenuButton } from '@/components/menu-button';
@@ -16,12 +17,14 @@ import { Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
 import { useLiveQuery } from '@/db/live';
 import { notes } from '@/db/schema';
+import { useAdaptiveLayout } from '@/hooks/use-adaptive-layout';
 import { useCloudSlice } from '@/hooks/use-cloud-slice';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function NotesScreen() {
   useCloudSlice('notes');
   const router = useRouter();
+  const { twoPane } = useAdaptiveLayout();
   const theme = useTheme();
   const [filter, setFilter] = useState<string>('all');
 
@@ -46,7 +49,7 @@ export default function NotesScreen() {
     filter === 'all' ? 'All notes' : (NOTE_CATEGORIES.find((row) => row.id === filter)?.label ?? 'Notes');
 
   return (
-    <Screen>
+    <Screen columns>
       <ScreenHeader
         title="Notes"
         subtitle="Notebook"
@@ -107,16 +110,36 @@ export default function NotesScreen() {
           />
         </FadeBlock>
       ) : (
-        <View style={styles.list}>
-          {filtered.map((note, index) => (
-            <NoteCard
-              key={note.id}
-              note={note}
-              index={index}
-              onPress={() => router.push({ pathname: '/note/[id]', params: { id: note.id } })}
-            />
-          ))}
-        </View>
+        <Columns
+          left={
+            <View style={styles.list}>
+              {(twoPane ? filtered.filter((_, index) => index % 2 === 0) : filtered).map((note, index) => (
+                <NoteCard
+                  key={note.id}
+                  note={note}
+                  index={twoPane ? index * 2 : index}
+                  onPress={() => router.push({ pathname: '/note/[id]', params: { id: note.id } })}
+                />
+              ))}
+            </View>
+          }
+          right={
+            twoPane ? (
+              <View style={styles.list}>
+                {filtered
+                  .filter((_, index) => index % 2 === 1)
+                  .map((note, index) => (
+                    <NoteCard
+                      key={note.id}
+                      note={note}
+                      index={index * 2 + 1}
+                      onPress={() => router.push({ pathname: '/note/[id]', params: { id: note.id } })}
+                    />
+                  ))}
+              </View>
+            ) : null
+          }
+        />
       )}
     </Screen>
   );

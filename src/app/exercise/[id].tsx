@@ -8,7 +8,7 @@ import { LineChart } from 'react-native-gifted-charts';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { formatKg, formatSet, MUSCLE_LABELS } from '@/constants/gym';
-import { Radius, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
 import { getExercise } from '@/db/queries/exercises';
 import {
@@ -83,7 +83,7 @@ export default function ExerciseDetailScreen() {
           </ThemedText>
           <LineChart
             data={chartData}
-            width={Math.max(220, width - 80)}
+            width={Math.max(220, Math.min(width, MaxContentWidth) - 80)}
             height={160}
             color={theme.accent}
             thickness={3}

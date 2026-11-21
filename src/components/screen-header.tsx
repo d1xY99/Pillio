@@ -36,6 +36,9 @@ const styles = StyleSheet.create({
   },
   titles: {
     flex: 1,
+    // Keep the title readable when the right side holds several actions
+    // (Stack on the 382pt iPhone Duo outer display squeezed it to one letter per line).
+    minWidth: 150,
     gap: 6,
   },
   kicker: {
@@ -44,5 +47,6 @@ const styles = StyleSheet.create({
   },
   right: {
     paddingTop: Spacing.one,
+    flexShrink: 1,
   },
 });

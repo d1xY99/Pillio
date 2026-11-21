@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { Columns } from '@/components/columns';
 import { EmptyState } from '@/components/empty-state';
 import { FadeIn } from '@/components/fade-in';
 import { HeroBanner } from '@/components/hero-banner';
@@ -59,7 +60,7 @@ export default function TrainScreen() {
   }
 
   return (
-    <Screen>
+    <Screen columns>
       <ScreenHeader title="Train" subtitle="Working weights and sessions" right={<MenuButton />} />
 
       <HeroBanner
@@ -69,62 +70,71 @@ export default function TrainScreen() {
         body="Every set remembers the last weight you moved."
       />
 
-      <FadeIn delay={80}>
-        <View style={styles.cta}>
-          <Button label={open ? 'Resume workout' : 'Start workout'} onPress={startOrResume} />
-        </View>
-      </FadeIn>
+      <Columns
+        left={
+          <>
+            <FadeIn delay={80}>
+              <View style={styles.cta}>
+                <Button label={open ? 'Resume workout' : 'Start workout'} onPress={startOrResume} />
+              </View>
+            </FadeIn>
 
-      {lifts.length > 0 ? (
-        <View style={styles.section}>
-          <ThemedText type="captionBold" themeColor="textTertiary">
-            WORKING WEIGHTS
-          </ThemedText>
-          {lifts.slice(0, 8).map((row) => (
-            <Pressable
-              key={row.exercise.id}
-              onPress={() =>
-                router.push({ pathname: '/exercise/[id]', params: { id: row.exercise.id } })
-              }
-              style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <ThemedText type="body">{row.exercise.name}</ThemedText>
-              <ThemedText type="headline">{formatKg(row.weight ?? 0)}</ThemedText>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-
-      {sessions.length === 0 ? (
-        <EmptyState
-          icon="dumbbell.fill"
-          title="No workouts yet"
-          body="Log sets with weight and reps. Each exercise remembers the last load you used."
-        />
-      ) : (
-        <View style={styles.section}>
-          <ThemedText type="captionBold" themeColor="textTertiary">
-            RECENT SESSIONS
-          </ThemedText>
-          {sessions.map((session) => {
-            const sets = listSetsForSession(session.id);
-            const exerciseCount = new Set(sets.map((set) => set.exerciseId)).size;
-            return (
-              <Pressable
-                key={session.id}
-                onPress={() => router.push({ pathname: '/workout/[id]', params: { id: session.id } })}
-                style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                <View>
-                  <ThemedText type="body">{formatDayLabel(session.startedAt)}</ThemedText>
-                  <ThemedText type="caption" themeColor="textSecondary">
-                    {exerciseCount} exercises · {sets.length} sets
-                    {session.finishedAt ? '' : ' · In progress'}
-                  </ThemedText>
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
+            {lifts.length > 0 ? (
+              <View style={styles.section}>
+                <ThemedText type="captionBold" themeColor="textTertiary">
+                  WORKING WEIGHTS
+                </ThemedText>
+                {lifts.slice(0, 8).map((row) => (
+                  <Pressable
+                    key={row.exercise.id}
+                    onPress={() =>
+                      router.push({ pathname: '/exercise/[id]', params: { id: row.exercise.id } })
+                    }
+                    style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                    <ThemedText type="body">{row.exercise.name}</ThemedText>
+                    <ThemedText type="headline">{formatKg(row.weight ?? 0)}</ThemedText>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </>
+        }
+        right={
+          <>
+            {sessions.length === 0 ? (
+              <EmptyState
+                icon="dumbbell.fill"
+                title="No workouts yet"
+                body="Log sets with weight and reps. Each exercise remembers the last load you used."
+              />
+            ) : (
+              <View style={styles.section}>
+                <ThemedText type="captionBold" themeColor="textTertiary">
+                  RECENT SESSIONS
+                </ThemedText>
+                {sessions.map((session) => {
+                  const sets = listSetsForSession(session.id);
+                  const exerciseCount = new Set(sets.map((set) => set.exerciseId)).size;
+                  return (
+                    <Pressable
+                      key={session.id}
+                      onPress={() => router.push({ pathname: '/workout/[id]', params: { id: session.id } })}
+                      style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                      <View>
+                        <ThemedText type="body">{formatDayLabel(session.startedAt)}</ThemedText>
+                        <ThemedText type="caption" themeColor="textSecondary">
+                          {exerciseCount} exercises · {sets.length} sets
+                          {session.finishedAt ? '' : ' · In progress'}
+                        </ThemedText>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </>
+        }
+      />
     </Screen>
   );
 }
