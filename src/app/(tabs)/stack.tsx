@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ArtThumb } from '@/components/art-thumb';
+import { Columns } from '@/components/columns';
 import { EmptyState } from '@/components/empty-state';
 import { FadeIn } from '@/components/fade-in';
 import { MenuButton } from '@/components/menu-button';
@@ -19,23 +20,22 @@ import { TYPE_LABELS } from '@/constants/catalog';
 import { Radius, Spacing } from '@/constants/theme';
 import { getDb } from '@/db/client';
 import { supplements } from '@/db/schema';
+import type { Supplement } from '@/db/schema';
 import type { SupplementType } from '@/db/types';
 import { isWeeklySupplement } from '@/domain/doses';
 import { describeSchedule, draftFromSchedules } from '@/domain/schedule';
 import { listSchedulesForSupplement } from '@/db/queries/schedules';
+import { useAdaptiveLayout } from '@/hooks/use-adaptive-layout';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function StackScreen() {
   const router = useRouter();
   const theme = useTheme();
   const db = getDb();
+  const { twoPane } = useAdaptiveLayout();
   const [showArchived, setShowArchived] = useState(false);
   const { data = [] } = useLiveQuery(
-    db
-      .select()
-      .from(supplements)
-      .where(eq(supplements.archived, showArchived))
-      .orderBy(supplements.name),
+    db.select().from(supplements).where(eq(supplements.archived, showArchived)).orderBy(supplements.name),
     [showArchived],
   );
 
@@ -48,10 +48,11 @@ export default function StackScreen() {
       }))
       .filter((group) => group.items.length > 0);
   }, [data]);
+  const [leftGroups, rightGroups] = splitGroups(grouped, twoPane);
 
   return (
     <ThemedView style={styles.flex}>
-      <Screen>
+      <Screen columns>
         <ScreenHeader
           title="Stack"
           subtitle={showArchived ? 'Archived items' : 'Vitamins, peptides, and supplements'}
@@ -106,37 +107,62 @@ export default function StackScreen() {
             />
           </FadeIn>
         ) : (
-          <View style={styles.groups}>
-            {grouped.map((group, index) => (
-              <FadeIn key={group.type} delay={index * 80}>
-                <View style={styles.group}>
-                  <View style={styles.groupHead}>
-                    <ArtThumb type={group.type} size={28} />
-                    <ThemedText type="captionBold" themeColor="textTertiary">
-                      {TYPE_LABELS[group.type].toUpperCase()}
-                    </ThemedText>
-                  </View>
-                  {group.items.map((item) => (
-                    <SupplementRow
-                      key={item.id}
-                      item={item}
-                      status={
-                        isWeeklySupplement(item.id)
-                          ? describeSchedule(draftFromSchedules(listSchedulesForSupplement(item.id)))
-                          : undefined
-                      }
-                      onPress={() =>
-                        router.push({ pathname: '/supplement/[id]', params: { id: item.id } })
-                      }
-                    />
-                  ))}
-                </View>
-              </FadeIn>
-            ))}
-          </View>
+          <Columns
+            left={<StackGroups groups={leftGroups} delayOffset={0} />}
+            right={<StackGroups groups={rightGroups} delayOffset={leftGroups.length} />}
+          />
         )}
       </Screen>
     </ThemedView>
+  );
+}
+
+type SupplementGroup = { type: SupplementType; items: Supplement[] };
+
+/** On two panes, split the type groups so both columns hold roughly the same number of rows. */
+function splitGroups(groups: SupplementGroup[], twoPane: boolean): [SupplementGroup[], SupplementGroup[]] {
+  if (!twoPane || groups.length < 2) return [groups, []];
+  const total = groups.reduce((sum, group) => sum + group.items.length, 0);
+  const left: SupplementGroup[] = [];
+  let count = 0;
+  for (const group of groups) {
+    if (left.length > 0 && count + group.items.length / 2 > total / 2) break;
+    left.push(group);
+    count += group.items.length;
+  }
+  return [left, groups.slice(left.length)];
+}
+
+function StackGroups({ groups, delayOffset }: { groups: SupplementGroup[]; delayOffset: number }) {
+  const router = useRouter();
+  if (groups.length === 0) return null;
+  return (
+    <View style={styles.groups}>
+      {groups.map((group, index) => (
+        <FadeIn key={group.type} delay={(index + delayOffset) * 80}>
+          <View style={styles.group}>
+            <View style={styles.groupHead}>
+              <ArtThumb type={group.type} size={28} />
+              <ThemedText type="captionBold" themeColor="textTertiary">
+                {TYPE_LABELS[group.type].toUpperCase()}
+              </ThemedText>
+            </View>
+            {group.items.map((item) => (
+              <SupplementRow
+                key={item.id}
+                item={item}
+                status={
+                  isWeeklySupplement(item.id)
+                    ? describeSchedule(draftFromSchedules(listSchedulesForSupplement(item.id)))
+                    : undefined
+                }
+                onPress={() => router.push({ pathname: '/supplement/[id]', params: { id: item.id } })}
+              />
+            ))}
+          </View>
+        </FadeIn>
+      ))}
+    </View>
   );
 }
 
